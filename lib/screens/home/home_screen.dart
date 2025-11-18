@@ -17,7 +17,6 @@ class _TailorHomeScreenState extends State<TailorHomeScreen> {
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
     final maxContentWidth = AppSpacing.responsiveMaxWidth(context);
     final isTablet = MediaQuery.sizeOf(context).width >= 720;
     final horizontalPadding = isTablet ? AppSpacing.lg : AppSpacing.md;
@@ -255,22 +254,25 @@ class _TailorHomeScreenState extends State<TailorHomeScreen> {
   }
 
   Future<void> _handleLogout() async {
-    if (!mounted) return;
-    final currentContext = context;
-    final currentLanguageProvider =
-        Provider.of<LanguageProvider>(currentContext, listen: false);
-    final currentColorScheme = Theme.of(currentContext).colorScheme;
-
     try {
       await AuthService().signOut();
       if (!mounted) return;
-      Navigator.of(currentContext).pushNamedAndRemoveUntil(
-        '/login',
-        (route) => false,
-      );
+      // Safe to use context after mounted check
+      // ignore: use_build_context_synchronously
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(currentContext).showSnackBar(
+      // Safe to use context after mounted check
+      // ignore: use_build_context_synchronously
+      final messenger = ScaffoldMessenger.of(context);
+      // ignore: use_build_context_synchronously
+      final currentLanguageProvider = Provider.of<LanguageProvider>(
+        context,
+        listen: false,
+      );
+      // ignore: use_build_context_synchronously
+      final currentColorScheme = Theme.of(context).colorScheme;
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             currentLanguageProvider.getText(
