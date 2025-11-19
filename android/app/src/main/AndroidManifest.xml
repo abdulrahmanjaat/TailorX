@@ -1,5 +1,7 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.abdulrahman.tailorx">
     <application
+        android:enableOnBackInvokedCallback="true"
         android:label="TailorX"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

@@ -2,7 +2,7 @@
 // ignore_for_file: type=lint
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -16,40 +16,14 @@ import 'package:flutter/foundation.dart'
 /// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    if (kIsWeb) {
-      return web;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return android;
     }
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return android;
-      case TargetPlatform.iOS:
-        return ios;
-      case TargetPlatform.macOS:
-        return macos;
-      case TargetPlatform.windows:
-        return windows;
-      case TargetPlatform.linux:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
-      default:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions are not supported for this platform.',
-        );
-    }
+    throw UnsupportedError(
+      'DefaultFirebaseOptions are configured only for Android. '
+      'This application is intended for Android builds.',
+    );
   }
-
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDxT7rJiEWl7K5avc8zQX-1RdvHXf5Yl_g',
-    appId: '1:653018830489:web:0daed99ae3ceee40290a08',
-    messagingSenderId: '653018830489',
-    projectId: 'lahoredulhasuiting-87108',
-    authDomain: 'lahoredulhasuiting-87108.firebaseapp.com',
-    databaseURL: 'https://lahoredulhasuiting-87108-default-rtdb.firebaseio.com',
-    storageBucket: 'lahoredulhasuiting-87108.firebasestorage.app',
-    measurementId: 'G-R84VM55LQT',
-  );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCfhCEHI2Pl7LhlDw0TQuLe-M08zZz_f3I',
@@ -58,40 +32,5 @@ class DefaultFirebaseOptions {
     projectId: 'lahoredulhasuiting-87108',
     databaseURL: 'https://lahoredulhasuiting-87108-default-rtdb.firebaseio.com',
     storageBucket: 'lahoredulhasuiting-87108.firebasestorage.app',
-  );
-
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBx7ysydvFKtmHHUTJycGu_xHQaqI7XV3M',
-    appId: '1:653018830489:ios:d6604da39589fc5f290a08',
-    messagingSenderId: '653018830489',
-    projectId: 'lahoredulhasuiting-87108',
-    databaseURL: 'https://lahoredulhasuiting-87108-default-rtdb.firebaseio.com',
-    storageBucket: 'lahoredulhasuiting-87108.firebasestorage.app',
-    androidClientId: '653018830489-rj550p62bl94erptmpit16og4cp1nhcr.apps.googleusercontent.com',
-    iosClientId: '653018830489-2o3jjrfakqv5dr63caoasropp3rk968r.apps.googleusercontent.com',
-    iosBundleId: 'com.example.lahoreDulhaSuiting',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBx7ysydvFKtmHHUTJycGu_xHQaqI7XV3M',
-    appId: '1:653018830489:ios:d6604da39589fc5f290a08',
-    messagingSenderId: '653018830489',
-    projectId: 'lahoredulhasuiting-87108',
-    databaseURL: 'https://lahoredulhasuiting-87108-default-rtdb.firebaseio.com',
-    storageBucket: 'lahoredulhasuiting-87108.firebasestorage.app',
-    androidClientId: '653018830489-rj550p62bl94erptmpit16og4cp1nhcr.apps.googleusercontent.com',
-    iosClientId: '653018830489-2o3jjrfakqv5dr63caoasropp3rk968r.apps.googleusercontent.com',
-    iosBundleId: 'com.example.lahoreDulhaSuiting',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDxT7rJiEWl7K5avc8zQX-1RdvHXf5Yl_g',
-    appId: '1:653018830489:web:60fba6d0eaf54be0290a08',
-    messagingSenderId: '653018830489',
-    projectId: 'lahoredulhasuiting-87108',
-    authDomain: 'lahoredulhasuiting-87108.firebaseapp.com',
-    databaseURL: 'https://lahoredulhasuiting-87108-default-rtdb.firebaseio.com',
-    storageBucket: 'lahoredulhasuiting-87108.firebasestorage.app',
-    measurementId: 'G-7112R3QJ26',
   );
 }

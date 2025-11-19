@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
-
 import 'providers/customer_provider.dart';
 import 'providers/language_provider.dart';
 import 'screens/auth/login_screen.dart';
@@ -58,7 +57,7 @@ class LahoreDulhaSuitingApp extends StatelessWidget {
           builder: (context, languageProvider, _) {
             return MaterialApp(
               debugShowCheckedModeBanner: false,
-              title: 'Lahore Dulha Suiting',
+              title: 'TailorX',
               theme: AppTheme.lightTheme,
               locale: languageProvider.locale,
               supportedLocales: const [Locale('en'), Locale('ur')],

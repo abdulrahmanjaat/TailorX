@@ -34,43 +34,6 @@
           ]
         }
       }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:653018830489:android:50b7485a95c4fc08290a08",
-        "android_client_info": {
-          "package_name": "com.example.lahore_dulha_suiting"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "653018830489-rj550p62bl94erptmpit16og4cp1nhcr.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.lahore_dulha_suiting",
-            "certificate_hash": "fbc8717f1895cfd786c473d443f185408ef97659"
-          }
-        },
-        {
-          "client_id": "653018830489-0offp2phst37l2o8l32k9j2nov9c9j6l.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyCfhCEHI2Pl7LhlDw0TQuLe-M08zZz_f3I"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "653018830489-0offp2phst37l2o8l32k9j2nov9c9j6l.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
     }
   ],
   "configuration_version": "1"
