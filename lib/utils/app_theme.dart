@@ -82,11 +82,12 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.gold,
+          foregroundColor: Colors.black,
           minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          foregroundColor: Colors.black,
           textStyle: GoogleFonts.montserrat(
             fontWeight: FontWeight.w600,
             fontSize: 16,

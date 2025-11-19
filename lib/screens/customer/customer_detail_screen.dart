@@ -391,7 +391,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                                                       itemCount:
                                                           measurements.length,
                                                       separatorBuilder:
-                                                          (_, __) => SizedBox(
+                                                          (_, _) => SizedBox(
                                                             height:
                                                                 AppSpacing.sm,
                                                           ),

@@ -179,7 +179,7 @@ class _FlatMeasurementView extends StatelessWidget {
               padding: EdgeInsets.all(20.w),
                 child: ListView.separated(
                   itemCount: fields.length + 1,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     if (index == 0) {
                       return Padding(

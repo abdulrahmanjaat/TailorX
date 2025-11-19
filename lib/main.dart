@@ -55,7 +55,7 @@ class LahoreDulhaSuitingApp extends StatelessWidget {
       minTextAdapt: true,
       builder: (context, _) {
         return Consumer<LanguageProvider>(
-          builder: (context, languageProvider, __) {
+          builder: (context, languageProvider, _) {
             return MaterialApp(
               debugShowCheckedModeBanner: false,
               title: 'Lahore Dulha Suiting',

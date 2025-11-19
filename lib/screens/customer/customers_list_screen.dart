@@ -117,7 +117,7 @@ class _CustomersListScreenState extends State<CustomersListScreen> {
                         ),
                         itemCount: customers.length,
                         separatorBuilder:
-                            (_, __) => SizedBox(height: AppSpacing.sm),
+                            (_, _) => SizedBox(height: AppSpacing.sm),
                         itemBuilder: (context, index) {
                           final customer = customers[index];
                           return Card(

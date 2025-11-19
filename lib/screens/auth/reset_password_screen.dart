@@ -27,10 +27,23 @@ class _PremiumResetPasswordScreenState extends State<PremiumResetPasswordScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       body: Stack(
         children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF101010), Color(0xFF181818), Color(0xFF0D0D0D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+          ),
           // Background Elements
           Positioned.fill(
             child: CustomPaint(
@@ -53,131 +66,215 @@ class _PremiumResetPasswordScreenState extends State<PremiumResetPasswordScreen>
                       constraints: BoxConstraints(maxWidth: maxWidth ?? 520),
                       child: Form(
                         key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: 16.h),
-                            Center(
-                              child: Container(
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 28.w,
+                            vertical: 32.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                blurRadius: 40,
+                                offset: const Offset(0, 30),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(height: 8.h),
+                              Center(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        AppColors.gold.withValues(alpha: 0.4),
+                                        colorScheme.secondary.withValues(alpha: 0.2),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.gold.withValues(alpha: 0.35),
+                                        blurRadius: 36,
+                                        spreadRadius: 4,
+                                        offset: const Offset(0, 16),
+                                      ),
+                                    ],
+                                  ),
+                                  padding: EdgeInsets.all(20.w),
+                                  child: Image.asset(
+                                    'lib/assets/images/logo.png',
+                                    width: 110.w,
+                                    color: Colors.white,
+                                  )
+                                      .animate()
+                                      .fadeIn(duration: 400.ms)
+                                      .scale(),
+                                ),
+                              ),
+                              SizedBox(height: 28.h),
+                              Column(
+                                children: [
+                                  Text(
+                                    'Reset Password',
+                                    style: GoogleFonts.playfairDisplay(
+                                      color: AppColors.gold,
+                                      fontSize: 32.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                      .animate()
+                                      .fadeIn(delay: 200.ms)
+                                      .slideY(begin: 0.2, end: 0),
+                                  SizedBox(height: 8.h),
+                                  Text(
+                                    'We’ll email you a secure link to create a new password.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.montserrat(
+                                      color: Colors.white70,
+                                      fontSize: 14.sp,
+                                      height: 1.5,
+                                    ),
+                                  ).animate().fadeIn(delay: 400.ms),
+                                ],
+                              ),
+                              SizedBox(height: 26.h),
+                              Container(
+                                padding: EdgeInsets.all(16.w),
                                 decoration: BoxDecoration(
-                                  boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.gold.withValues(alpha: 0.3),
-                                      blurRadius: 30,
-                                      spreadRadius: 6,
-                                      offset: const Offset(0, 10),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: AppColors.gold.withValues(alpha: 0.35),
+                                  ),
+                                  color: AppColors.gold.withValues(alpha: 0.08),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white10,
+                                      ),
+                                      child: Icon(
+                                        Icons.lock_reset_rounded,
+                                        color: AppColors.gold,
+                                        size: 22.w,
+                                      ),
+                                    ),
+                                    SizedBox(width: 12.w),
+                                    Expanded(
+                                      child: Text(
+                                        'Use the email linked to your account. We’ll send a reset link instantly.',
+                                        style: GoogleFonts.montserrat(
+                                          color: Colors.white,
+                                          fontSize: 13.5.sp,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: Image.asset(
-                                  'lib/assets/images/logo.png',
-                                  width: 120.w,
-                                  color: Colors.white,
-                                )
-                                    .animate()
-                                    .fadeIn(duration: 400.ms)
-                                    .scale(),
-                              ),
-                            ),
-                            SizedBox(height: 28.h),
-                            Column(
-                              children: [
-                                Text(
-                                  'Reset Password',
-                                  style: GoogleFonts.playfairDisplay(
+                              ).animate().fadeIn(delay: 520.ms),
+                              SizedBox(height: 24.h),
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: InputDecoration(
+                                  labelText: 'Email address',
+                                  labelStyle:
+                                      const TextStyle(color: Colors.white70),
+                                  prefixIcon: const Icon(
+                                    Icons.email_outlined,
+                                    color: Colors.white54,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide:
+                                        const BorderSide(color: Colors.white24),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide:
+                                        const BorderSide(color: Colors.white24),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide:
+                                        const BorderSide(color: AppColors.gold),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white.withValues(alpha: 0.04),
+                                  hintText: 'Enter your email',
+                                  hintStyle: const TextStyle(
+                                    color: Colors.white38,
+                                  ),
+                                ),
+                                style: const TextStyle(color: Colors.white),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your email';
+                                  }
+                                  return null;
+                                },
+                              )
+                                  .animate()
+                                  .fadeIn(delay: 650.ms)
+                                  .slideY(begin: 0.1, end: 0),
+                              SizedBox(height: 24.h),
+                              ElevatedButton(
+                                onPressed: _isLoading ? null : _handleReset,
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: 16.h),
+                                ),
+                                child: _isLoading
+                                    ? SizedBox(
+                                        width: 22.w,
+                                        height: 22.w,
+                                        child: const CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.black,
+                                        ),
+                                      )
+                                    : Text(
+                                        'Send reset link'.toUpperCase(),
+                                        style: GoogleFonts.montserrat(
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.8,
+                                        ),
+                                      ),
+                              )
+                                  .animate()
+                                  .fadeIn(delay: 820.ms)
+                                  .scaleXY(begin: 0.95, end: 1),
+                              SizedBox(height: 18.h),
+                              TextButton.icon(
+                                onPressed: () => Navigator.pop(context),
+                                icon: Icon(
+                                  Icons.arrow_back,
+                                  size: 18.w,
+                                  color: AppColors.gold,
+                                ),
+                                label: Text(
+                                  'Back to login',
+                                  style: GoogleFonts.montserrat(
                                     color: AppColors.gold,
-                                    fontSize: 32.sp,
+                                    fontSize: 14.sp,
                                     fontWeight: FontWeight.w600,
                                   ),
-                                )
-                                    .animate()
-                                    .fadeIn(delay: 200.ms)
-                                    .slideY(begin: 0.2, end: 0),
-                                SizedBox(height: 14.h),
-                                Text(
-                                  'Enter your email to receive a reset link',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.montserrat(
-                                    color: Colors.white70,
-                                    fontSize: 14.sp,
-                                  ),
-                                ).animate().fadeIn(delay: 400.ms),
-                              ],
-                            ),
-                            SizedBox(height: 32.h),
-                            TextFormField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              decoration: InputDecoration(
-                                labelText: 'Email',
-                                labelStyle:
-                                    const TextStyle(color: Colors.white70),
-                                prefixIcon: const Icon(
-                                  Icons.email_outlined,
-                                  color: Colors.white54,
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide:
-                                      const BorderSide(color: Colors.white24),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide:
-                                      const BorderSide(color: Colors.white24),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide:
-                                      const BorderSide(color: AppColors.gold),
-                                ),
-                              ),
-                              style: const TextStyle(color: Colors.white),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
-                                }
-                                return null;
-                              },
-                            )
-                                .animate()
-                                .fadeIn(delay: 600.ms)
-                                .slideY(begin: 0.1, end: 0),
-                            SizedBox(height: 24.h),
-                            ElevatedButton(
-                              onPressed: _isLoading ? null : _handleReset,
-                              child: _isLoading
-                                  ? SizedBox(
-                                      width: 22.w,
-                                      height: 22.w,
-                                      child: const CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.black,
-                                      ),
-                                    )
-                                  : Text(
-                                      'SEND RESET LINK',
-                                      style: GoogleFonts.montserrat(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                            )
-                                .animate()
-                                .fadeIn(delay: 800.ms)
-                                .scaleXY(begin: 0.95, end: 1),
-                            SizedBox(height: 18.h),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(
-                                'Back to Login',
-                                style: GoogleFonts.montserrat(
-                                  color: AppColors.gold,
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ).animate().fadeIn(delay: 1000.ms),
-                          ],
+                              ).animate().fadeIn(delay: 980.ms),
+                            ],
+                          ),
                         ),
                       ),
                     ),
