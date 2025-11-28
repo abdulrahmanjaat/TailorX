@@ -6,6 +6,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/helpers/validators.dart';
 import '../../../core/theme/app_buttons.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_inputs.dart';
 import '../../../shared/services/toast_service.dart';
@@ -22,6 +23,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
+  bool _obscurePassword = true;
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
@@ -84,11 +86,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             AppInputField(
               labelText: 'Password',
               hintText: '••••••••',
-              obscureText: true,
+              obscureText: _obscurePassword,
               validator: (value) =>
                   Validators.requiredField(value, fieldName: 'Password'),
               onChanged: controller.updatePassword,
               prefix: const Icon(Icons.lock_outline),
+              suffix: IconButton(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(scale: animation, child: child),
+                    );
+                  },
+                  child: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    key: ValueKey(_obscurePassword),
+                    color: AppColors.dark.withValues(alpha: 0.6),
+                  ),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
             ),
             const SizedBox(height: AppSizes.lg),
             AppButton(

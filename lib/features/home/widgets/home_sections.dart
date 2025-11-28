@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/custom_card.dart';
@@ -12,10 +14,17 @@ class HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: AppColors.surface,
-          child: const Icon(Icons.person, color: AppColors.primary),
+        GestureDetector(
+          onTap: () => context.push(AppRoutes.profile),
+          child: CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.surface.withValues(alpha: 0.9),
+            child: const Icon(
+              Icons.person,
+              color: AppColors.primary,
+              size: AppSizes.iconMd,
+            ),
+          ),
         ),
         const SizedBox(width: AppSizes.sm),
         Expanded(
@@ -31,7 +40,7 @@ class HomeHeader extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             IconButton(
-              onPressed: () {},
+              onPressed: () => context.push(AppRoutes.notifications),
               icon: const Icon(Icons.notifications_none),
             ),
             Positioned(
@@ -61,7 +70,7 @@ class WelcomeCard extends StatelessWidget {
     return CustomCard(
       padding: const EdgeInsets.all(AppSizes.xl),
       gradient: const LinearGradient(
-        colors: [Color(0xFF0FB7B0), Color(0xFF63E0C9)],
+        colors: [Color.fromARGB(255, 107, 214, 230), Color(0xFF63E0C9)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
@@ -78,14 +87,15 @@ class WelcomeCard extends StatelessWidget {
           Text(
             'Welcome back, TailorX',
             style: AppTextStyles.headlineMedium.copyWith(
-              color: AppColors.background,
+              color: const Color.fromARGB(255, 0, 0, 0),
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: AppSizes.xs),
           Text(
             'You have 4 orders today',
             style: AppTextStyles.bodyLarge.copyWith(
-              color: AppColors.background,
+              color: const Color.fromARGB(255, 0, 0, 0),
             ),
           ),
           const SizedBox(height: AppSizes.md),
@@ -97,13 +107,16 @@ class WelcomeCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.schedule, color: AppColors.background),
+                child: const Icon(
+                  Icons.schedule,
+                  color: Color.fromARGB(255, 0, 0, 0),
+                ),
               ),
               const SizedBox(width: AppSizes.sm),
               Text(
                 'First fitting starts at 10:00 AM',
                 style: AppTextStyles.bodyRegular.copyWith(
-                  color: AppColors.background,
+                  color: const Color.fromARGB(255, 0, 0, 0),
                 ),
               ),
             ],
@@ -120,17 +133,25 @@ class ActionButtonsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _ActionItem('New Order', Icons.content_cut),
-      _ActionItem('Orders', Icons.library_books_outlined),
-      _ActionItem('Customers', Icons.group_outlined),
-      _ActionItem('Measurements', Icons.straighten),
+      _ActionItem('Create Customer', Icons.person_add, AppRoutes.addCustomer),
+      _ActionItem(
+        'Add Measurement',
+        Icons.straighten,
+        AppRoutes.addMeasurement,
+      ),
+      _ActionItem('Create New Order', Icons.content_cut, AppRoutes.addOrder),
+      _ActionItem(
+        'All Orders',
+        Icons.library_books_outlined,
+        AppRoutes.ordersList,
+      ),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 360;
-        final crossAxisCount = 2;
-        final childAspectRatio = isCompact ? 0.8 : 1.1;
+        final crossAxisCount = constraints.maxWidth > 520 ? 4 : 2;
+        final childAspectRatio = isCompact ? 0.85 : 1.05;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -146,32 +167,23 @@ class ActionButtonsGrid extends StatelessWidget {
             return CustomCard(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSizes.md,
-                vertical: AppSizes.lg,
+                vertical: AppSizes.md,
               ),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFFFFF), Color(0xFFEFF7F6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.dark.withValues(alpha: 0.06),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+              onTap: () => context.push(item.route),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(AppSizes.md),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFDEF7F2), Color(0xFFEAFBF7)],
-                      ),
+                      color: AppColors.surface.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Icon(item.icon, size: 30, color: AppColors.primary),
+                    child: Icon(
+                      item.icon,
+                      size: AppSizes.iconLg,
+                      color: AppColors.primary,
+                    ),
                   ),
                   const SizedBox(height: AppSizes.md),
                   Text(
@@ -192,9 +204,10 @@ class ActionButtonsGrid extends StatelessWidget {
 }
 
 class _ActionItem {
-  const _ActionItem(this.label, this.icon);
+  const _ActionItem(this.label, this.icon, this.route);
   final String label;
   final IconData icon;
+  final String route;
 }
 
 class TodayStatsRow extends StatelessWidget {
@@ -264,12 +277,10 @@ class _StatTile extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(AppSizes.sm),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFE7F5F2), Color(0xFFF1FBF7)],
-            ),
-            borderRadius: BorderRadius.circular(16),
+            color: AppColors.surface.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(18),
           ),
-          child: Icon(icon, color: AppColors.primary),
+          child: Icon(icon, color: AppColors.primary, size: AppSizes.iconMd),
         ),
         const SizedBox(width: AppSizes.sm),
         Column(
@@ -335,7 +346,10 @@ class LatestOrdersList extends StatelessWidget {
                   children: [
                     Chip(
                       label: Text(order.$2),
-                      backgroundColor: AppColors.surface,
+                      backgroundColor: AppColors.surface.withValues(alpha: 0.9),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     Text('Delivery ${order.$3}', style: AppTextStyles.caption),
                   ],

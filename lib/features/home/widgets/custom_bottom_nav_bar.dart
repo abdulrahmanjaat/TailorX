@@ -1,8 +1,8 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
@@ -19,70 +19,102 @@ class _TailorBottomNavState extends State<TailorBottomNav> {
   final _items = const [
     _NavItem('Home', Icons.home_filled),
     _NavItem('Orders', Icons.receipt_long),
-    _NavItem('Customers', Icons.people_alt),
-    _NavItem('Settings', Icons.settings_rounded),
+    _NavItem('Clients', Icons.groups_rounded),
+    _NavItem('Profile', Icons.person),
   ];
+
+  void _handleTap(BuildContext context, int index) {
+    final targetRoute = switch (index) {
+      0 => AppRoutes.home,
+      1 => AppRoutes.ordersList,
+      2 => AppRoutes.customersList,
+      3 => AppRoutes.profile,
+      _ => AppRoutes.home,
+    };
+
+    final currentLocation = GoRouterState.of(context).uri.toString();
+    if (currentLocation == targetRoute) return;
+
+    setState(() => _currentIndex = index);
+    context.push(targetRoute);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouterState.of(context).uri.toString();
+    final resolvedIndex = _indexFromLocation(location);
+    if (resolvedIndex != _currentIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _currentIndex = resolvedIndex);
+        }
+      });
+    }
+
     return SizedBox(
       height: 120,
       child: Stack(
         clipBehavior: Clip.none,
-        alignment: Alignment.topCenter,
+        alignment: Alignment.center,
         children: [
           Positioned(
             bottom: 0,
-            left: AppSizes.lg,
-            right: AppSizes.lg,
+            left: 0,
+            right: 0,
             child: ClipPath(
-              clipper: _NavShellClipper(),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.lg,
-                    vertical: AppSizes.md,
+              clipper: _FloatingNavClipper(),
+              child: Container(
+                height: 74,
+                padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0E3A39), Color(0xFF1D5E5D)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.dark, AppColors.primary],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(40),
-                    border: Border.all(
-                      color: AppColors.secondary.withValues(alpha: 0.25),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.dark.withValues(alpha: 0.35),
-                        blurRadius: 28,
-                        offset: const Offset(0, 16),
-                      ),
-                    ],
+                  borderRadius: BorderRadius.circular(44),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.07),
                   ),
-                  child: Row(
-                    children: List.generate(
-                      _items.length,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.dark.withValues(alpha: 0.22),
+                      blurRadius: 24,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    ...List.generate(
+                      2,
                       (index) => _NavButton(
                         item: _items[index],
                         isActive: _currentIndex == index,
-                        onTap: () => setState(() => _currentIndex = index),
+                        onTap: () => _handleTap(context, index),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 56),
+                    ...List.generate(
+                      2,
+                      (index) => _NavButton(
+                        item: _items[index + 2],
+                        isActive: _currentIndex == index + 2,
+                        onTap: () => _handleTap(context, index + 2),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
           Positioned(
-            top: -18,
+            top: 25,
             child: GestureDetector(
-              onTap: () {},
+              onTap: () => context.push(AppRoutes.addCustomer),
               child: Container(
-                width: 66,
-                height: 66,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
@@ -92,7 +124,7 @@ class _TailorBottomNavState extends State<TailorBottomNav> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.45),
+                      color: AppColors.primary.withValues(alpha: 0.35),
                       blurRadius: 22,
                       offset: const Offset(0, 12),
                     ),
@@ -101,7 +133,7 @@ class _TailorBottomNavState extends State<TailorBottomNav> {
                 child: const Icon(
                   Icons.add,
                   color: AppColors.background,
-                  size: 30,
+                  size: AppSizes.iconLg,
                 ),
               ),
             ),
@@ -109,6 +141,21 @@ class _TailorBottomNavState extends State<TailorBottomNav> {
         ],
       ),
     );
+  }
+
+  int _indexFromLocation(String location) {
+    if (location.startsWith(AppRoutes.ordersList) ||
+        location.startsWith(AppRoutes.orderDetail)) {
+      return 1;
+    }
+    if (location.startsWith(AppRoutes.customersList) ||
+        location.startsWith(AppRoutes.customerDetail)) {
+      return 2;
+    }
+    if (location.startsWith(AppRoutes.profile)) {
+      return 3;
+    }
+    return 0;
   }
 }
 
@@ -125,37 +172,29 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = isActive
+        ? AppColors.background
+        : AppColors.background.withValues(alpha: 0.5);
     return Expanded(
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
+        child: Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: isActive
-                ? AppColors.surface.withValues(alpha: 0.35)
-                : Colors.transparent,
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                item.icon,
-                color: isActive
-                    ? AppColors.background
-                    : AppColors.background.withValues(alpha: 0.6),
-              ),
+              Icon(item.icon, color: color, size: AppSizes.iconMd),
               const SizedBox(height: 6),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.caption.copyWith(
-                  color: isActive
-                      ? AppColors.background
-                      : AppColors.background.withValues(alpha: 0.6),
+                  fontSize: 11,
+                  color: color,
                   fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                 ),
-                child: Text(item.label),
               ),
             ],
           ),
@@ -165,41 +204,46 @@ class _NavButton extends StatelessWidget {
   }
 }
 
-class _NavShellClipper extends CustomClipper<Path> {
+class _FloatingNavClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    const double corner = 36;
-    const double dipWidth = 110;
-    const double dipDepth = 28;
+    const notchRadius = 36.0;
+    final notchWidth = notchRadius * 2.4;
+    final centerX = size.width / 2;
+    final notchStart = centerX - notchWidth / 2;
+    final notchEnd = centerX + notchWidth / 2;
 
-    final path = Path();
-    path.moveTo(0, corner);
-    path.quadraticBezierTo(0, 0, corner, 0);
-
-    final dipStart = (size.width - dipWidth) / 2;
-    final dipEnd = dipStart + dipWidth;
-
-    path.lineTo(dipStart - 12, 0);
-    path.cubicTo(
-      dipStart + 10,
-      0,
-      size.width / 2 - 40,
-      dipDepth,
-      size.width / 2,
-      dipDepth + 10,
+    final path = Path()..moveTo(24, 0);
+    path.quadraticBezierTo(0, 0, 0, 24);
+    path.lineTo(0, size.height - 18);
+    path.quadraticBezierTo(0, size.height, 24, size.height);
+    path.lineTo(size.width - 24, size.height);
+    path.quadraticBezierTo(
+      size.width,
+      size.height,
+      size.width,
+      size.height - 18,
     );
-    path.cubicTo(size.width / 2 + 40, dipDepth, dipEnd - 10, 0, dipEnd + 12, 0);
-
-    path.lineTo(size.width - corner, 0);
-    path.quadraticBezierTo(size.width, 0, size.width, corner);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
+    path.lineTo(size.width, 24);
+    path.quadraticBezierTo(size.width, 0, size.width - 24, 0);
+    path.lineTo(notchEnd, 0);
+    path.quadraticBezierTo(notchEnd - 6, 0, notchEnd - 12, 6);
+    path.cubicTo(
+      centerX + notchRadius * 0.7,
+      notchRadius + 14,
+      centerX - notchRadius * 0.7,
+      notchRadius + 14,
+      notchStart + 12,
+      6,
+    );
+    path.quadraticBezierTo(notchStart + 6, 0, notchStart, 0);
+    path.lineTo(24, 0);
     path.close();
     return path;
   }
 
   @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
 class _NavItem {

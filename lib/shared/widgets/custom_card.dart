@@ -31,21 +31,26 @@ class CustomCard extends StatelessWidget {
             gradient ??
             LinearGradient(
               colors: [
-                AppColors.background,
-                AppColors.surface.withValues(alpha: 0.7),
+                const Color.fromARGB(
+                  255,
+                  172,
+                  234,
+                  234,
+                ).withValues(alpha: 0.96),
+                const Color.fromARGB(255, 138, 173, 190).withValues(alpha: 0.9),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
         boxShadow:
             boxShadow ??
             [
               BoxShadow(
                 color: AppColors.dark.withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 12),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
               ),
             ],
       ),

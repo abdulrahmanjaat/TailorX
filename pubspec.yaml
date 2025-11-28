@@ -37,6 +37,9 @@ dependencies:
   flutter_riverpod: ^2.5.1
   go_router: ^14.2.0
   shared_preferences: ^2.3.2
+  image_picker: ^1.0.7
+  share_plus: ^10.1.2
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

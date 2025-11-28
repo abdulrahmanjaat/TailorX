@@ -1,6 +1,6 @@
 {
-    "name": "tailorx_app",
-    "short_name": "tailorx_app",
+    "name": "TailorX",
+    "short_name": "TailorX",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

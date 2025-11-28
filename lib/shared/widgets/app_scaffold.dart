@@ -13,6 +13,7 @@ class AppScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.padding = const EdgeInsets.all(AppSizes.md),
     this.bottomNavigationBar,
+    this.showBackButton = true,
   });
 
   final Widget body;
@@ -21,14 +22,26 @@ class AppScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final EdgeInsetsGeometry padding;
   final Widget? bottomNavigationBar;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
+    final navigator = Navigator.of(context);
+    final canPop = navigator.canPop();
+    final shouldShowBack = showBackButton && canPop;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: title == null
           ? null
           : AppBar(
+              leading: shouldShowBack
+                  ? IconButton(
+                      onPressed: () => navigator.maybePop(),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    )
+                  : null,
+              automaticallyImplyLeading: false,
               title: Text(title!, style: AppTextStyles.titleLarge),
               actions: actions,
             ),

@@ -1,63 +1,126 @@
 # TailorX – Premium Atelier OS
 
-TailorX is a modern Flutter experience crafted for boutique ateliers across Pakistan, India, and beyond.  
-The app follows a strict clean architecture, a bespoke design system, and provides a luxurious-yet-simple UX that uneducated users can still navigate with ease.
+TailorX is a production-ready Flutter application tailored for boutique tailoring houses across Pakistan, India, and emerging markets.  
+It marries couture-level aesthetics with pragmatic UX so even first-time smartphone users can manage orders, customers, and measurements with confidence.
 
-## ✨ Feature Highlights
-- **Immersive intro** – Aurora splash, animated onboarding journey, and branded auth shell.
-- **Authentication suite** – Login, signup, and a 3-step forgot-password sheet powered by Riverpod controllers.
-- **Dashboard built for tailors** – Card-based overview, action hub, stats, and latest orders using premium Glassmorphism components.
-- **Custom components** – `AppScaffold`, `AppButton`, `AppInputField`, `CustomCard`, `CustomCircularIndicator`, `AuroraBackground`, and the bespoke floating BottomNav inspired by the reference shot.
-- **Riverpod + GoRouter** – Predictable state management and declarative routing throughout.
-- **Responsive-ready** – Layouts rely on `MediaQuery`, `AppSizes`, and flexible widgets so Android phones, tablets, and Web screens all feel native.
+---
 
-## 🏗 Architecture Snapshot
+##  Product Highlights
+- **Immersive entry**: Aurora-style splash, cinematic onboarding carousel, and branded Auth shell for login/signup with Riverpod-powered controllers.
+- **Enhanced Authentication**: Password visibility toggle with smooth animations on login and signup screens for better UX.
+- **Intuitive home dashboard**: Gradient welcome hero, action grid for daily operations, responsive stats, and latest orders wrapped inside a custom glassmorphic UI.
+- **Complete business stack**:
+  - **Orders module** – list, filters, detail, add flow with measurement auto-linking, receipt generation, and sharing capabilities.
+  - **Customers module** – searchable CRM, add/detail views, linked order + measurement history.
+  - **Measurements module** – 30+ fields, gender-aware grouping, dedicated detail screen, add/edit flows with validation.
+- **Floating Luxury Bottom Nav**: bespoke glass navigation shell with a raised action orb, adaptive labels, and icon-first interactions.
+- **Professional UI Feedback**: Custom snackbar service with success (green), error (red), and info (dark) variants featuring icons, rounded corners, and smooth animations.
+- **Design System**: bespoke `AppScaffold`, `AppButton`, `AppInputField`, `CustomCard`, `AuroraBackground`, `MeasurementGroupCard`, `CustomerCard`, etc.
+- **State & Routing**: Riverpod for deterministic state + GoRouter for clean navigation across splash, auth, dashboard, orders, customers, measurements, and notifications.
+- **Responsive by design**: `AppSizes`, `MediaQuery`, and adaptive grids ensure everything from 5" Android phones to large tablets and web canvases look polished.
+
+---
+
+## 🧱 Architecture Overview
 ```
 lib/
-  core/
-    theme/        → AppColors, AppTextStyles, AppButtons, AppInputs, AppTheme
-    routes/       → GoRouter setup + route constants
-    helpers/      → Validators, responsive utilities
-    constants/    → AppSizes spacing scale
-  shared/
-    widgets/      → AppScaffold, CustomCard, AuroraBackground, etc.
-    services/     → SecureStorageService, ToastService
-  features/
-    splash/       → controller + screen
-    onboarding/   → controller + screen
-    auth/         → controllers, screens, forgot password sheet
-    home/         → controller, premium home layout, custom bottom nav
-    notifications/→ controller + list screen
+├── core
+│   ├── theme/          # AppColors, AppTextStyles, AppButtons, AppInputs, AppTheme
+│   ├── routes/         # GoRouter config + route constants
+│   ├── helpers/        # Validators, responsive utilities
+│   └── constants/      # AppSizes spacing scale
+├── shared
+│   ├── widgets/        # AppScaffold, CustomCard, AuroraBackground, Measurement tiles, etc.
+│   └── services/       # SecureStorageService, SnackbarService, ToastService
+├── features
+│   ├── splash/         # Animated orb intro
+│   ├-─ onboarding/     # 3-screen onboarding flow
+│   ├── auth/           # Login, signup, forgot password (Riverpod controllers)
+│   ├── home/           # Dashboard UI + bottom nav
+│   ├── orders/         # models, controllers, screens, widgets (list/add/detail)
+│   ├── customers/      # CRM flows (list/add/detail cards)
+│   ├── measurements/   # measurement forms, detail view, UI helpers
+│   └── notifications/  # updates feed
 ```
 
-## 🧩 Screens & Flows
-- **Splash** – Animated orb, tagline, micro-stat chips.
-- **Onboarding** – 3 slides with bold typography, illustrations, and progress CTA.
-- **Auth** – Minimal login/signup forms, luxury spacing, glass bottom sheet for recovery.
-- **Home** – Welcome gradient card, action grid, responsive stats row, latest orders, and the custom nav bar.
-- **Notifications** – Card stack with subtle hover feel and timestamps.
+All business logic lives inside feature-specific `controllers/` (StateNotifiers). UI widgets pull data via Riverpod selectors, preserving separation of concerns.
 
-## 🚀 Getting Started
+---
+
+## 🧩 Key Modules at a Glance
+
+### 1. Orders
+- **OrdersListScreen**: search, quick filters (All / New / In Progress / Completed), card-based list using the `OrderCard` + `OrderStatusBadge`.
+- **AddOrderScreen**: customer dropdowns from `customersProvider`, auto-attach measurement, delivery date picker, total/advance validation, toast feedback.
+- **OrderDetailScreen**: rich summary with amount breakdown, status toggles (auto-updates Riverpod state), measurement deep-link, edit/delete actions.
+
+### 2. Customers
+- **CustomersListScreen**: debounced search, `CustomerCard` entries, add button launching `AddCustomerScreen`.
+- **AddCustomerScreen**: minimal form with validation, persists via `customersProvider`.
+- **CustomerDetailScreen**: full profile (phone/email/address), linked measurements and order history sections with CTA to measurement details.
+
+### 3. Measurements
+- **MeasurementsListScreen**: search, gender badges, edit/delete actions via dialog, `MeasurementTile` showing key metrics.
+- **AddMeasurementScreen**: 30+ structured fields grouped by `MeasurementGroupCard`, gender selector, note support, buttons backed by Riverpod.
+- **MeasurementDetailScreen**: read-only view of all metrics, grouped cards, edit/delete hooks.
+
+### 4. Global Experiences
+- **Splash & Onboarding**: branded experience with animated gradients and story-driven slides.
+- **Auth Stack**: glassmorphism-driven login/sign-up with password visibility toggle, smooth icon animations, and 3-step password recovery bottom sheet.
+- **Home Dashboard**: card-first UI with `CustomCard`, `MeasurementGroupCard`, `CustomBottomNavBar`, `OrderStatusBadge`, and `CustomFilterChip`.
+- **User Feedback**: Professional snackbar notifications using `SnackbarService` with color-coded messages (success/error/info) and smooth animations.
+
+---
+
+## 🧬 Design System & Guidelines
+- **Color palette**: `AppColors` (teal primary, aqua secondary, warm neutrals) to mirror luxury atelier brand language.
+- **Typography**: `AppTextStyles` ensures consistent type ramp (headline/body/caption) – no direct `TextStyle` usage.
+- **Spacing**: `AppSizes` (4/8/12/16/24/32/40) controls all margins/padding.
+- **UI primitives**:
+  - `AppScaffold` for consistent safe areas, toolbars, and global padding.
+  - `CustomCard`, `MeasurementGroupCard`, `OrderCard`, `CustomerCard` for reusable layout patterns.
+  - `AppButton` and `AppInputField` for buttons/forms to guarantee accessible sizing and theming.
+- **Services**:
+  - `SnackbarService`: Unified notification system with `showSuccess()`, `showError()`, and `showInfo()` methods for consistent user feedback.
+  - `SecureStorageService`: Secure local storage for user profiles and sensitive data.
+  - `ToastService`: Top banner notifications for important messages.
+- **Interaction patterns**: Glassmorphism, subtle blurs, elevated surfaces, pronounced shadow tokens, and smooth animations to maintain a premium aesthetic.
+
+---
+
+## 🧪 Tooling & Commands
 ```bash
+# Install dependencies
 flutter pub get
-flutter run -d chrome   # or android emulator / device
+
+# Run the app (device/emulator/web)
+flutter run
+
+# Quality checks
+flutter analyze
+flutter test
 ```
 
-### Helpful Scripts
-```bash
-flutter analyze   # static analysis
-flutter test      # widget/unit tests
-```
+Requires **Flutter 3.19+** and **Dart 3+**. The project targets Android and Web by default; iOS/macOS/Linux can be added with minimal effort.
 
-## 🧱 Design System Notes
-- **Palette**: `AppColors.primary` (teal), `secondary`, `background`, `surface`, `dark`.
-- **Typography**: `AppTextStyles` enforces all text usage (no raw `TextStyle`s).
-- **Spacing**: `AppSizes` governs rhythm (8/12/16/24 px scale).
-- **Components**: Always use TailorX widgets (`AppButton`, `AppInputField`, `CustomCard`, etc.) to ensure consistency.
+---
 
-## 📦 Requirements Recap
-- Flutter 3.19+
-- Dart 3+
-- Target platforms: Android & Web (desktop layouts supported via responsive helpers).
+## 🎨 Recent Improvements
+- **Custom Snackbar Service**: Replaced default ScaffoldMessenger with a professional snackbar system featuring:
+  - Color-coded variants (green for success, red for errors, dark for info)
+  - Icon indicators for each message type
+  - Rounded corners, shadows, and smooth animations
+  - Consistent styling across the entire app
+- **Password Visibility Toggle**: Enhanced login and signup screens with:
+  - Smooth animated icon transitions (fade + scale)
+  - Visibility/visibility_off icons for better UX
+  - State management for password field visibility
 
-Enjoy building atop TailorX’s premium foundation! Let us know if you need more flows (orders, customers, measurements) scaffolded in the same style.
+## 🤝 Contributing & Extensibility
+- Follow the existing `feature / controller / screen / widget` pattern when adding new flows (inventory, invoicing, etc.).
+- Extend Riverpod controllers for side effects (API integration, persistence) while keeping UI layers declarative.
+- Leverage `AppSizes`/`AppTextStyles` for all new UI to maintain consistency.
+- Use `SnackbarService` for all user feedback messages instead of direct ScaffoldMessenger calls.
+- Follow the established password visibility pattern when adding new password fields.
+
+TailorX is built as a foundation for high-touch tailoring businesses. Explore, extend, and craft your own premium workflows on top of this solid, opinionated codebase. Happy tailoring! ✂️

@@ -10,24 +10,41 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      padding: const EdgeInsets.all(AppSizes.lg),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            HomeHeader(),
-            SizedBox(height: AppSizes.lg),
-            WelcomeCard(),
-            SizedBox(height: AppSizes.lg),
-            ActionButtonsGrid(),
-            SizedBox(height: AppSizes.lg),
-            TodayStatsRow(),
-            SizedBox(height: AppSizes.lg),
-            LatestOrdersList(),
-          ],
-        ),
+      showBackButton: false,
+      padding: EdgeInsets.zero,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSizes.md,
+              AppSizes.lg,
+              AppSizes.md,
+              150,
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                HomeHeader(),
+                SizedBox(height: AppSizes.lg),
+                WelcomeCard(),
+                SizedBox(height: AppSizes.lg),
+                ActionButtonsGrid(),
+                SizedBox(height: AppSizes.lg),
+                TodayStatsRow(),
+                SizedBox(height: AppSizes.lg),
+                LatestOrdersList(),
+                SizedBox(height: AppSizes.xl),
+              ],
+            ),
+          ),
+          const Positioned(
+            left: AppSizes.md,
+            right: AppSizes.md,
+            bottom: AppSizes.lg,
+            child: TailorBottomNav(),
+          ),
+        ],
       ),
-      bottomNavigationBar: const TailorBottomNav(),
     );
   }
 }
