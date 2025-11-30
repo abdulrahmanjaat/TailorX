@@ -53,6 +53,22 @@ class CustomersController extends StateNotifier<List<CustomerModel>> {
       return null;
     }
   }
+
+  /// Finds a customer by phone number or name (case-insensitive)
+  /// Returns the first matching customer or null if not found
+  CustomerModel? findByPhoneOrName(String phone, String name) {
+    try {
+      final phoneLower = phone.trim().toLowerCase();
+      final nameLower = name.trim().toLowerCase();
+      return state.firstWhere(
+        (customer) =>
+            customer.phone.toLowerCase() == phoneLower ||
+            customer.name.toLowerCase() == nameLower,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 final customersProvider =

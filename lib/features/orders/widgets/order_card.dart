@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/custom_card.dart';
@@ -27,7 +29,18 @@ class OrderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(order.customerName, style: AppTextStyles.titleLarge),
+                    InkWell(
+                      onTap: () => context.push(
+                        '${AppRoutes.customerDetail}/${order.customerId}',
+                      ),
+                      child: Text(
+                        order.customerName,
+                        style: AppTextStyles.titleLarge.copyWith(
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: AppSizes.xs),
                     Text(
                       order.orderType,
@@ -66,7 +79,7 @@ class OrderCard extends StatelessWidget {
                   Text('Remaining', style: AppTextStyles.caption),
                   const SizedBox(height: AppSizes.xs),
                   Text(
-                    'Rs. ${order.remainingAmount.toStringAsFixed(0)}',
+                    '\$${order.remainingAmount.toStringAsFixed(0)}',
                     style: AppTextStyles.bodyLarge.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w700,

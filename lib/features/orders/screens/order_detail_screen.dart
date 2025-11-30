@@ -24,10 +24,20 @@ class OrderDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final orders = ref.watch(ordersProvider);
-    final order = orders.firstWhere(
-      (item) => item.id == orderId,
-      orElse: () => throw Exception('Order not found'),
-    );
+    final order = orders.where((item) => item.id == orderId).firstOrNull;
+
+    if (order == null) {
+      // Order was deleted, navigate back
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          context.pop();
+        }
+      });
+      return AppScaffold(
+        title: 'Order Details',
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return AppScaffold(
       title: 'Order Details',
@@ -54,11 +64,6 @@ class OrderDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSizes.lg),
                   OrderDetailTile(
-                    label: 'Order Type',
-                    value: order.orderType,
-                    icon: Icons.category_outlined,
-                  ),
-                  OrderDetailTile(
                     label: 'Created On',
                     value: _formatDate(order.createdAt),
                     icon: Icons.calendar_month_outlined,
@@ -67,6 +72,64 @@ class OrderDetailScreen extends ConsumerWidget {
                     label: 'Delivery Date',
                     value: _formatDate(order.deliveryDate),
                     icon: Icons.event_outlined,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            CustomCard(
+              padding: const EdgeInsets.all(AppSizes.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Order Items', style: AppTextStyles.titleLarge),
+                  const SizedBox(height: AppSizes.md),
+                  ...order.items.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSizes.md),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.orderType,
+                                  style: AppTextStyles.bodyLarge.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  'Qty: ${item.quantity} × \$${item.unitPrice.toStringAsFixed(2)}',
+                                  style: AppTextStyles.caption,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '\$${item.lineTotal.toStringAsFixed(2)}',
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(),
+                  const SizedBox(height: AppSizes.md),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Subtotal', style: AppTextStyles.bodyLarge),
+                      Text(
+                        '\$${order.subtotal.toStringAsFixed(2)}',
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -93,56 +156,79 @@ class OrderDetailScreen extends ConsumerWidget {
             const SizedBox(height: AppSizes.lg),
             CustomCard(
               padding: const EdgeInsets.all(AppSizes.lg),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Status', style: AppTextStyles.bodyRegular),
-                        const SizedBox(height: AppSizes.xs),
-                        Text(
-                          order.status == OrderStatus.completed
-                              ? 'Completed'
-                              : order.status.label,
-                          style: AppTextStyles.bodyLarge.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: order.status == OrderStatus.completed
-                                ? AppColors.success
-                                : AppColors.dark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(
-                    value: order.status == OrderStatus.completed,
-                    onChanged: (value) {
-                      final newStatus = value
-                          ? OrderStatus.completed
-                          : OrderStatus.inProgress;
+                  Text('Order Status', style: AppTextStyles.titleLarge),
+                  const SizedBox(height: AppSizes.md),
+                  _StatusOption(
+                    label: 'New',
+                    status: OrderStatus.newOrder,
+                    currentStatus: order.status,
+                    onTap: () {
                       ref
                           .read(ordersProvider.notifier)
-                          .updateStatus(order.id, newStatus);
+                          .updateStatus(order.id, OrderStatus.newOrder);
+                      SnackbarService.showSuccess(
+                        context,
+                        message: 'Status updated to New',
+                      );
                     },
-                    activeThumbColor: AppColors.success,
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  _StatusOption(
+                    label: 'In Progress',
+                    status: OrderStatus.inProgress,
+                    currentStatus: order.status,
+                    onTap: () {
+                      ref
+                          .read(ordersProvider.notifier)
+                          .updateStatus(order.id, OrderStatus.inProgress);
+                      SnackbarService.showSuccess(
+                        context,
+                        message: 'Status updated to In Progress',
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  _StatusOption(
+                    label: 'Completed',
+                    status: OrderStatus.completed,
+                    currentStatus: order.status,
+                    onTap: () {
+                      ref
+                          .read(ordersProvider.notifier)
+                          .updateStatus(order.id, OrderStatus.completed);
+                      SnackbarService.showSuccess(
+                        context,
+                        message: 'Status updated to Completed',
+                      );
+                    },
                   ),
                 ],
               ),
             ),
             const SizedBox(height: AppSizes.lg),
-            if (order.measurementId != null)
-              AppButton(
-                label: 'View Measurements',
-                onPressed: () => context.push(
-                  '${AppRoutes.measurementsDetail}/${order.measurementId}',
-                ),
-                type: AppButtonType.secondary,
-              ),
+            if (order.items.any((item) => item.measurementId != null))
+              ...order.items
+                  .where((item) => item.measurementId != null)
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                      child: AppButton(
+                        label: 'View ${item.orderType} Measurements',
+                        onPressed: () => context.push(
+                          '${AppRoutes.measurementsDetail}/${item.measurementId}',
+                        ),
+                        type: AppButtonType.secondary,
+                      ),
+                    ),
+                  ),
             const SizedBox(height: AppSizes.md),
             AppButton(
               label: 'Edit Order',
-              onPressed: () => context.push(AppRoutes.addOrder),
+              onPressed: () =>
+                  context.push('${AppRoutes.editOrder}/${orderId}'),
               type: AppButtonType.secondary,
             ),
             const SizedBox(height: AppSizes.md),
@@ -174,9 +260,22 @@ class OrderDetailScreen extends ConsumerWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
+
+              // Delete the order first
               ref.read(ordersProvider.notifier).deleteOrder(id);
-              context.pop();
-              SnackbarService.showSuccess(context, message: 'Order deleted');
+
+              // Show success message
+              SnackbarService.showSuccess(
+                context,
+                message: 'Order deleted successfully',
+              );
+
+              // Navigate back after a small delay to ensure state updates
+              Future.delayed(const Duration(milliseconds: 50), () {
+                if (context.mounted) {
+                  context.pop();
+                }
+              });
             },
             child: const Text(
               'Delete',
@@ -184,6 +283,71 @@ class OrderDetailScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatusOption extends StatelessWidget {
+  const _StatusOption({
+    required this.label,
+    required this.status,
+    required this.currentStatus,
+    required this.onTap,
+  });
+
+  final String label;
+  final OrderStatus status;
+  final OrderStatus currentStatus;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = status == currentStatus;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSizes.sm),
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.md),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? status.color.withValues(alpha: 0.1)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSizes.sm),
+          border: Border.all(
+            color: isSelected ? status.color : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected ? status.color : Colors.transparent,
+                border: Border.all(color: status.color, width: 2),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: AppSizes.md),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.bodyLarge.copyWith(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? status.color : AppColors.dark,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle, color: status.color, size: 20),
+          ],
+        ),
       ),
     );
   }

@@ -13,6 +13,7 @@ class AppRoutes {
   static const String termsPrivacy = '/terms-privacy';
   static const String ordersList = '/orders';
   static const String addOrder = '/orders/add';
+  static const String editOrder = '/orders/edit';
   static const String orderDetail = '/orders/detail';
   static const String orderReceipt = '/orders/receipt';
   static const String customersList = '/customers';

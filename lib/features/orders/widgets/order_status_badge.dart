@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_sizes.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../models/order_model.dart';
 
@@ -13,22 +12,22 @@ class OrderStatusBadge extends StatelessWidget {
   Color get _backgroundColor {
     switch (status) {
       case OrderStatus.newOrder:
-        return AppColors.primary.withValues(alpha: 0.15);
+        return Colors.green.withValues(alpha: 0.15);
       case OrderStatus.inProgress:
-        return AppColors.secondary.withValues(alpha: 0.15);
+        return Colors.black.withValues(alpha: 0.15);
       case OrderStatus.completed:
-        return AppColors.success.withValues(alpha: 0.12);
+        return Colors.red.withValues(alpha: 0.15);
     }
   }
 
   Color get _textColor {
     switch (status) {
       case OrderStatus.newOrder:
-        return AppColors.primary;
+        return Colors.green;
       case OrderStatus.inProgress:
-        return AppColors.secondary;
+        return Colors.black;
       case OrderStatus.completed:
-        return AppColors.success;
+        return Colors.red;
     }
   }
 

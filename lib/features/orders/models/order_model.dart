@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'order_item_model.dart';
+
 enum OrderStatus { newOrder, inProgress, completed }
 
 extension OrderStatusX on OrderStatus {
@@ -17,11 +19,11 @@ extension OrderStatusX on OrderStatus {
   Color get color {
     switch (this) {
       case OrderStatus.newOrder:
-        return const Color(0xFF2B7A78);
-      case OrderStatus.inProgress:
-        return const Color(0xFF3AAFA9);
-      case OrderStatus.completed:
         return Colors.green;
+      case OrderStatus.inProgress:
+        return Colors.black;
+      case OrderStatus.completed:
+        return Colors.red;
     }
   }
 }
@@ -31,25 +33,27 @@ class OrderModel {
     required this.id,
     required this.customerId,
     required this.customerName,
-    required this.orderType,
+    required this.items,
     required this.gender,
-    required this.measurementId,
-    required this.measurementMap,
     required this.deliveryDate,
     required this.createdAt,
     required this.status,
     required this.totalAmount,
     required this.advanceAmount,
     this.notes,
-  });
+    // Legacy fields for backward compatibility
+    String? orderType,
+    String? measurementId,
+    Map<String, double>? measurementMap,
+  }) : _orderType = orderType,
+       _measurementId = measurementId,
+       _measurementMap = measurementMap;
 
   final String id;
   final String customerId;
   final String customerName;
-  final String orderType;
+  final List<OrderItem> items;
   final String gender;
-  final String? measurementId;
-  final Map<String, double> measurementMap;
   final DateTime deliveryDate;
   final DateTime createdAt;
   final OrderStatus status;
@@ -57,16 +61,29 @@ class OrderModel {
   final double advanceAmount;
   final String? notes;
 
+  // Legacy fields for backward compatibility
+  final String? _orderType;
+  final String? _measurementId;
+  final Map<String, double>? _measurementMap;
+
+  // Legacy getters for backward compatibility
+  String get orderType =>
+      items.isNotEmpty ? items.first.orderType : (_orderType ?? '');
+  String? get measurementId =>
+      items.isNotEmpty ? items.first.measurementId : _measurementId;
+  Map<String, double> get measurementMap =>
+      items.isNotEmpty ? items.first.measurementMap : (_measurementMap ?? {});
+
   double get remainingAmount => totalAmount - advanceAmount;
+
+  double get subtotal => items.fold(0.0, (sum, item) => sum + item.lineTotal);
 
   OrderModel copyWith({
     String? id,
     String? customerId,
     String? customerName,
-    String? orderType,
+    List<OrderItem>? items,
     String? gender,
-    String? measurementId,
-    Map<String, double>? measurementMap,
     DateTime? deliveryDate,
     DateTime? createdAt,
     OrderStatus? status,
@@ -78,10 +95,8 @@ class OrderModel {
       id: id ?? this.id,
       customerId: customerId ?? this.customerId,
       customerName: customerName ?? this.customerName,
-      orderType: orderType ?? this.orderType,
+      items: items ?? this.items,
       gender: gender ?? this.gender,
-      measurementId: measurementId ?? this.measurementId,
-      measurementMap: measurementMap ?? this.measurementMap,
       deliveryDate: deliveryDate ?? this.deliveryDate,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,

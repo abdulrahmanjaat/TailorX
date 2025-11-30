@@ -38,15 +38,6 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
     return AppScaffold(
       title: 'Orders',
       padding: const EdgeInsets.all(AppSizes.lg),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.addOrder),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: AppColors.background),
-        label: Text(
-          'New Order',
-          style: AppTextStyles.bodyLarge.copyWith(color: AppColors.background),
-        ),
-      ),
       body: Column(
         children: [
           AppInputField(

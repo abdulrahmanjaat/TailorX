@@ -7,7 +7,9 @@ import '../../../core/helpers/validators.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_inputs.dart';
+import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../../shared/widgets/international_phone_field.dart';
 import '../controllers/customers_controller.dart';
 import '../models/customer_model.dart';
 
@@ -22,6 +24,7 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _phoneFieldKey = GlobalKey<InternationalPhoneFieldState>();
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
 
@@ -37,10 +40,36 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   void _saveCustomer() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final name = _nameController.text.trim();
+    // Get full phone number with country code from the phone field
+    final phone =
+        _phoneFieldKey.currentState?.getFullPhoneNumber() ??
+        _phoneController.text.trim();
+
+    // Check if customer already exists
+    final existingCustomer = ref
+        .read(customersProvider.notifier)
+        .findByPhoneOrName(phone, name);
+
+    if (existingCustomer != null) {
+      // Customer already exists - redirect to customer detail screen
+      SnackbarService.showInfo(
+        context,
+        message: 'Customer already exists. Opening customer details...',
+      );
+      if (mounted) {
+        context.pushReplacement(
+          '${AppRoutes.customerDetail}/${existingCustomer.id}',
+        );
+      }
+      return;
+    }
+
+    // Create new customer
     final customer = CustomerModel(
       id: 'cus-${DateTime.now().millisecondsSinceEpoch}',
-      name: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
+      name: name,
+      phone: phone,
       email: _emailController.text.trim().isEmpty
           ? null
           : _emailController.text.trim(),
@@ -51,6 +80,10 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
     );
 
     ref.read(customersProvider.notifier).addCustomer(customer);
+    SnackbarService.showSuccess(
+      context,
+      message: 'Customer created successfully',
+    );
 
     // Redirect to Add Measurement Screen with customer data
     if (mounted) {
@@ -80,22 +113,29 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
                     Validators.requiredField(value, fieldName: 'Name'),
               ),
               const SizedBox(height: AppSizes.md),
-              AppInputField(
+              InternationalPhoneField(
+                key: _phoneFieldKey,
                 controller: _phoneController,
                 labelText: 'Phone Number',
-                hintText: '+92 300 1234567',
-                keyboardType: TextInputType.phone,
-                prefix: const Icon(Icons.phone_outlined),
-                validator: (value) =>
-                    Validators.requiredField(value, fieldName: 'Phone'),
+                hintText: '1234567890',
+                validator: (value) => Validators.phone(value),
               ),
               const SizedBox(height: AppSizes.md),
-              AppInputField(
+              TextFormField(
                 controller: _emailController,
-                labelText: 'Email (Optional)',
-                hintText: 'customer@example.com',
                 keyboardType: TextInputType.emailAddress,
-                prefix: const Icon(Icons.email_outlined),
+                decoration: InputDecoration(
+                  labelText: 'Email (Optional)',
+                  hintText: 'customer@example.com',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.sm),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.md,
+                    vertical: AppSizes.md,
+                  ),
+                ),
                 validator: (value) {
                   if (value != null && value.isNotEmpty) {
                     return Validators.email(value);
@@ -104,11 +144,20 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
                 },
               ),
               const SizedBox(height: AppSizes.md),
-              AppInputField(
+              TextFormField(
                 controller: _addressController,
-                labelText: 'Address (Optional)',
-                hintText: 'Enter address',
-                prefix: const Icon(Icons.location_on_outlined),
+                decoration: InputDecoration(
+                  labelText: 'Address (Optional)',
+                  hintText: 'Enter address',
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.sm),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.md,
+                    vertical: AppSizes.md,
+                  ),
+                ),
                 maxLines: 2,
               ),
               const SizedBox(height: AppSizes.xl),

@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/helpers/validators.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_inputs.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../../shared/widgets/international_phone_field.dart';
 import '../controllers/profile_controller.dart';
 import '../models/profile_model.dart';
 
@@ -25,6 +27,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _shopNameController;
   late final TextEditingController _phoneController;
+  final _phoneFieldKey = GlobalKey<InternationalPhoneFieldState>();
   final _imagePicker = ImagePicker();
   File? _profileImage;
   bool _isLoading = false;
@@ -86,10 +89,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Get full phone number with country code from the phone field
+      final phone =
+          _phoneFieldKey.currentState?.getFullPhoneNumber() ??
+          _phoneController.text.trim();
+
       final profile = ProfileModel(
         name: _nameController.text.trim(),
         shopName: _shopNameController.text.trim(),
-        phone: _phoneController.text.trim(),
+        phone: phone,
         profileImagePath: _profileImage?.path,
       );
 
@@ -184,14 +192,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     value?.isEmpty ?? true ? 'Shop name is required' : null,
               ),
               const SizedBox(height: AppSizes.md),
-              AppInputField(
+              InternationalPhoneField(
+                key: _phoneFieldKey,
                 controller: _phoneController,
                 labelText: 'Phone Number',
-                hintText: 'Enter phone number',
-                prefix: const Icon(Icons.phone_outlined),
-                keyboardType: TextInputType.phone,
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Phone number is required' : null,
+                hintText: '1234567890',
+                validator: (value) => Validators.phone(value),
               ),
               const SizedBox(height: AppSizes.xl),
               AppButton(
