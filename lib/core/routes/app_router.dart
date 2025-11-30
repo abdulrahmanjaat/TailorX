@@ -13,6 +13,7 @@ import '../../features/measurements/screens/measurements_list_screen.dart';
 import '../../features/notifications/screens/notification_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/orders/screens/add_order_screen.dart';
+import '../../features/orders/screens/edit_order_screen.dart';
 import '../../features/orders/screens/order_detail_screen.dart';
 import '../../features/orders/screens/order_receipt_screen.dart';
 import '../../features/orders/screens/orders_list_screen.dart';
@@ -86,6 +87,14 @@ final appRouterProvider = Provider<GoRouter>(
         path: AppRoutes.addOrder,
         name: AppRoutes.addOrder,
         builder: (context, state) => const AddOrderScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.editOrder}/:orderId',
+        name: AppRoutes.editOrder,
+        builder: (context, state) {
+          final orderId = state.pathParameters['orderId'] ?? '';
+          return EditOrderScreen(orderId: orderId);
+        },
       ),
       GoRoute(
         path: '${AppRoutes.orderDetail}/:orderId',

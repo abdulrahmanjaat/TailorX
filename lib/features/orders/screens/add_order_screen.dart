@@ -11,9 +11,36 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/custom_card.dart';
+import '../../customers/controllers/customers_controller.dart';
 import '../../measurements/controllers/measurements_controller.dart';
+import '../../measurements/models/measurement_model.dart';
 import '../controllers/orders_controller.dart';
+import '../models/order_item_model.dart';
 import '../models/order_model.dart';
+
+class _SelectedItem {
+  final String measurementId;
+  final MeasurementModel measurement;
+  int quantity;
+  double unitPrice;
+  final TextEditingController quantityController;
+  final TextEditingController priceController;
+
+  _SelectedItem({
+    required this.measurementId,
+    required this.measurement,
+    this.quantity = 1,
+    this.unitPrice = 0,
+  }) : quantityController = TextEditingController(text: '1'),
+       priceController = TextEditingController();
+
+  double get lineTotal => unitPrice * quantity;
+
+  void dispose() {
+    quantityController.dispose();
+    priceController.dispose();
+  }
+}
 
 class AddOrderScreen extends ConsumerStatefulWidget {
   const AddOrderScreen({super.key});
@@ -24,7 +51,6 @@ class AddOrderScreen extends ConsumerStatefulWidget {
 
 class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _totalAmountController = TextEditingController();
   final _advanceAmountController = TextEditingController();
   final _notesController = TextEditingController();
   final _deliveryDateController = TextEditingController();
@@ -32,16 +58,13 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
   String? _customerId;
   String? _customerName;
   String? _phone;
-  String? _gender;
-  String? _orderType;
-  String? _measurementId;
-  Map<String, double> _measurementMap = {};
   DateTime? _deliveryDate;
+
+  final List<_SelectedItem> _selectedItems = [];
 
   @override
   void initState() {
     super.initState();
-    _totalAmountController.addListener(() => setState(() {}));
     _advanceAmountController.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadParamsFromRoute();
@@ -53,26 +76,38 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
     final params = uri.queryParameters;
 
     setState(() {
-      _customerId = params['customerId'];
-      _customerName = params['customerName'] != null
-          ? Uri.decodeComponent(params['customerName']!)
-          : null;
-      _phone = params['phone'] != null
-          ? Uri.decodeComponent(params['phone']!)
-          : null;
-      _gender = params['gender'];
-      _orderType = params['orderType'] != null
-          ? Uri.decodeComponent(params['orderType']!)
-          : null;
-      _measurementId = params['measurementId'];
+      // If customerId is provided, load customer data
+      if (params.containsKey('customerId')) {
+        _customerId = params['customerId'];
+        final customers = ref.read(customersProvider);
+        try {
+          final customer = customers.firstWhere((c) => c.id == _customerId);
+          _customerName = customer.name;
+          _phone = customer.phone;
+        } catch (_) {
+          // Customer not found
+        }
+      } else {
+        // Legacy support for old flow
+        _customerId = params['customerId'];
+        _customerName = params['customerName'] != null
+            ? Uri.decodeComponent(params['customerName']!)
+            : null;
+        _phone = params['phone'] != null
+            ? Uri.decodeComponent(params['phone']!)
+            : null;
+      }
 
-      if (_measurementId != null) {
+      final measurementId = params['measurementId'];
+
+      // Legacy support: if single measurement comes from route, add it
+      if (measurementId != null) {
         final measurements = ref.read(measurementsProvider);
         try {
           final measurement = measurements.firstWhere(
-            (m) => m.id == _measurementId,
+            (m) => m.id == measurementId,
           );
-          _measurementMap = measurement.values;
+          _addMeasurementItem(measurement);
         } catch (_) {
           // Measurement not found
         }
@@ -80,9 +115,55 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
     });
   }
 
+  void _addMeasurementItem(MeasurementModel measurement) {
+    final item = _SelectedItem(
+      measurementId: measurement.id,
+      measurement: measurement,
+      quantity: 1,
+      unitPrice: 0,
+    );
+
+    item.quantityController.addListener(() {
+      setState(() {
+        item.quantity = int.tryParse(item.quantityController.text) ?? 1;
+        _updateTotalAmount();
+      });
+    });
+
+    item.priceController.addListener(() {
+      setState(() {
+        item.unitPrice = double.tryParse(item.priceController.text) ?? 0;
+        _updateTotalAmount();
+      });
+    });
+
+    setState(() {
+      _selectedItems.add(item);
+    });
+  }
+
+  void _removeItem(_SelectedItem item) {
+    item.dispose();
+    setState(() {
+      _selectedItems.remove(item);
+      _updateTotalAmount();
+    });
+  }
+
+  void _updateTotalAmount() {
+    // Total is calculated from selected items
+    // This is handled in the UI display
+  }
+
+  double get _subtotal {
+    return _selectedItems.fold(0.0, (sum, item) => sum + item.lineTotal);
+  }
+
   @override
   void dispose() {
-    _totalAmountController.dispose();
+    for (final item in _selectedItems) {
+      item.dispose();
+    }
     _advanceAmountController.dispose();
     _notesController.dispose();
     _deliveryDateController.dispose();
@@ -125,10 +206,14 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
 
   void _saveOrder() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_customerId == null || _orderType == null) {
+    if (_customerId == null) {
+      SnackbarService.showInfo(context, message: 'Customer is required');
+      return;
+    }
+    if (_selectedItems.isEmpty) {
       SnackbarService.showInfo(
         context,
-        message: 'Missing required information',
+        message: 'Please select at least one measurement',
       );
       return;
     }
@@ -137,21 +222,52 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       return;
     }
 
-    final total = double.tryParse(_totalAmountController.text) ?? 0;
+    // Validate all items have quantity and price
+    for (final item in _selectedItems) {
+      if (item.quantity < 1) {
+        SnackbarService.showInfo(
+          context,
+          message:
+              'Quantity must be at least 1 for ${item.measurement.orderType}',
+        );
+        return;
+      }
+      if (item.unitPrice <= 0) {
+        SnackbarService.showInfo(
+          context,
+          message: 'Please enter price for ${item.measurement.orderType}',
+        );
+        return;
+      }
+    }
+
     final advance = double.tryParse(_advanceAmountController.text) ?? 0;
+    final subtotal = _subtotal;
+
+    // Create order items
+    final orderItems = _selectedItems.map((item) {
+      return OrderItem(
+        orderType: item.measurement.orderType,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        measurementId: item.measurementId,
+        measurementMap: item.measurement.values,
+      );
+    }).toList();
+
+    // Determine gender from first item
+    final gender = _selectedItems.first.measurement.gender.name;
 
     final order = OrderModel(
       id: 'ord-${DateTime.now().millisecondsSinceEpoch}',
       customerId: _customerId!,
       customerName: _customerName ?? 'Unknown',
-      orderType: _orderType!,
-      gender: _gender ?? 'Unknown',
-      measurementId: _measurementId,
-      measurementMap: _measurementMap,
+      items: orderItems,
+      gender: gender,
       deliveryDate: _deliveryDate!,
       createdAt: DateTime.now(),
       status: OrderStatus.newOrder,
-      totalAmount: total,
+      totalAmount: subtotal,
       advanceAmount: advance,
       notes: _notesController.text.trim().isEmpty
           ? null
@@ -159,6 +275,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
     );
 
     ref.read(ordersProvider.notifier).addOrder(order);
+    SnackbarService.showSuccess(context, message: 'Order created successfully');
 
     // Redirect to receipt screen
     if (mounted) {
@@ -204,76 +321,37 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSizes.md),
+                // Show customer measurements if customerId is provided
+                if (_customerId != null) _buildMeasurementSelection(context),
               ],
-              if (_orderType != null) ...[
-                CustomCard(
-                  padding: const EdgeInsets.all(AppSizes.md),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.category, color: AppColors.primary),
-                      const SizedBox(width: AppSizes.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Order Type', style: AppTextStyles.caption),
-                            Text(
-                              _orderType!,
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              if (_selectedItems.isNotEmpty) ...[
+                const SizedBox(height: AppSizes.lg),
+                Text('Order Items', style: AppTextStyles.titleLarge),
+                const SizedBox(height: AppSizes.sm),
+                ..._selectedItems.map((item) => _buildOrderItemCard(item)),
                 const SizedBox(height: AppSizes.md),
-              ],
-              if (_measurementMap.isNotEmpty) ...[
                 CustomCard(
                   padding: const EdgeInsets.all(AppSizes.md),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Icon(
-                            Icons.straighten,
-                            color: AppColors.primary,
-                          ),
-                          const SizedBox(width: AppSizes.sm),
+                          Text('Subtotal', style: AppTextStyles.bodyLarge),
                           Text(
-                            'Measurements (Preview)',
+                            '\$${_subtotal.toStringAsFixed(2)}',
                             style: AppTextStyles.bodyLarge.copyWith(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: AppSizes.sm),
-                      Wrap(
-                        spacing: AppSizes.sm,
-                        runSpacing: AppSizes.xs,
-                        children: _measurementMap.entries
-                            .take(8)
-                            .map(
-                              (entry) => Chip(
-                                label: Text(
-                                  '${_label(entry.key)}: ${entry.value}',
-                                  style: AppTextStyles.caption,
-                                ),
-                                backgroundColor: AppColors.surface,
-                              ),
-                            )
-                            .toList(),
-                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSizes.md),
               ],
+              const SizedBox(height: AppSizes.md),
               GestureDetector(
                 onTap: _selectDeliveryDate,
                 child: AppInputField(
@@ -285,22 +363,6 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                   validator: (value) =>
                       _deliveryDate == null ? 'Select delivery date' : null,
                 ),
-              ),
-              const SizedBox(height: AppSizes.md),
-              AppInputField(
-                controller: _totalAmountController,
-                labelText: 'Total Amount',
-                hintText: 'Enter total amount',
-                keyboardType: TextInputType.number,
-                prefix: const Icon(Icons.currency_rupee),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Enter total amount';
-                  }
-                  return double.tryParse(value) == null
-                      ? 'Enter valid number'
-                      : null;
-                },
               ),
               const SizedBox(height: AppSizes.md),
               AppInputField(
@@ -319,8 +381,8 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                 },
               ),
               const SizedBox(height: AppSizes.sm),
-              if (_totalAmountController.text.isNotEmpty &&
-                  _advanceAmountController.text.isNotEmpty)
+              if (_advanceAmountController.text.isNotEmpty &&
+                  _selectedItems.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(AppSizes.sm),
                   decoration: BoxDecoration(
@@ -332,7 +394,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                     children: [
                       Text('Balance', style: AppTextStyles.bodyLarge),
                       Text(
-                        'PKR ${(double.tryParse(_totalAmountController.text) ?? 0) - (double.tryParse(_advanceAmountController.text) ?? 0)}',
+                        '\$${(_subtotal - (double.tryParse(_advanceAmountController.text) ?? 0)).toStringAsFixed(2)}',
                         style: AppTextStyles.bodyLarge.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
@@ -359,26 +421,210 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
     );
   }
 
-  String _label(String key) {
-    switch (key) {
-      case 'pantLength':
-        return 'Pant Length';
-      case 'forkLength':
-        return 'Fork Length';
-      case 'backWidth':
-        return 'Back Width';
-      case 'frontLength':
-        return 'Front Length';
-      case 'shirtLength':
-        return 'Shirt Length';
-      case 'kameezLength':
-        return 'Kameez Length';
-      case 'trouserLength':
-        return 'Trouser Length';
-      case 'armhole':
-        return 'Armhole';
-      default:
-        return key[0].toUpperCase() + key.substring(1);
+  Widget _buildOrderItemCard(_SelectedItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.md),
+      child: CustomCard(
+        padding: const EdgeInsets.all(AppSizes.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  item.measurement.gender == MeasurementGender.female
+                      ? Icons.female
+                      : Icons.male,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: AppSizes.sm),
+                Expanded(
+                  child: Text(
+                    item.measurement.orderType,
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: AppColors.error),
+                  onPressed: () => _removeItem(item),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.md),
+            Row(
+              children: [
+                Expanded(
+                  child: AppInputField(
+                    controller: item.quantityController,
+                    labelText: 'Quantity',
+                    hintText: '1',
+                    keyboardType: TextInputType.number,
+                    prefix: const Icon(Icons.numbers),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Required';
+                      }
+                      final qty = int.tryParse(value);
+                      if (qty == null || qty < 1) {
+                        return 'Min: 1';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppSizes.md),
+                Expanded(
+                  child: AppInputField(
+                    controller: item.priceController,
+                    labelText: 'Unit Price',
+                    hintText: '0.00',
+                    keyboardType: TextInputType.number,
+                    prefix: const Icon(Icons.attach_money),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Required';
+                      }
+                      final price = double.tryParse(value);
+                      if (price == null || price <= 0) {
+                        return 'Invalid price';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Line Total', style: AppTextStyles.caption),
+                Text(
+                  '\$${item.lineTotal.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMeasurementSelection(BuildContext context) {
+    if (_customerId == null) return const SizedBox.shrink();
+
+    final measurements = ref.watch(measurementsProvider);
+    final customerMeasurements = measurements
+        .where((m) => m.customerId == _customerId)
+        .toList();
+
+    if (customerMeasurements.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CustomCard(
+            padding: const EdgeInsets.all(AppSizes.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('No measurements found', style: AppTextStyles.bodyLarge),
+                const SizedBox(height: AppSizes.sm),
+                AppButton(
+                  label: 'Create New Measurement',
+                  onPressed: () => context.push(
+                    '${AppRoutes.addMeasurement}?customerId=$_customerId',
+                  ),
+                  type: AppButtonType.secondary,
+                  isSmall: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSizes.md),
+        ],
+      );
     }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Select Measurements', style: AppTextStyles.titleLarge),
+        const SizedBox(height: AppSizes.sm),
+        Text(
+          'Select one or more measurements to add to this order',
+          style: AppTextStyles.caption,
+        ),
+        const SizedBox(height: AppSizes.sm),
+        ...customerMeasurements.map((measurement) {
+          final isSelected = _selectedItems.any(
+            (item) => item.measurementId == measurement.id,
+          );
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSizes.sm),
+            child: CustomCard(
+              padding: const EdgeInsets.all(AppSizes.md),
+              onTap: () {
+                if (isSelected) {
+                  // Remove if already selected
+                  final item = _selectedItems.firstWhere(
+                    (item) => item.measurementId == measurement.id,
+                  );
+                  _removeItem(item);
+                } else {
+                  // Add if not selected
+                  _addMeasurementItem(measurement);
+                }
+              },
+              child: Row(
+                children: [
+                  Icon(
+                    measurement.gender == MeasurementGender.female
+                        ? Icons.female
+                        : Icons.male,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: AppSizes.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${measurement.orderType} - ${measurement.gender.label}',
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Created ${_formatDate(measurement.createdAt)}',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isSelected)
+                    const Icon(Icons.check_circle, color: AppColors.primary),
+                ],
+              ),
+            ),
+          );
+        }),
+        const SizedBox(height: AppSizes.sm),
+        AppButton(
+          label: 'Create New Measurement',
+          onPressed: () => context.push(
+            '${AppRoutes.addMeasurement}?customerId=$_customerId',
+          ),
+          type: AppButtonType.secondary,
+          isSmall: true,
+        ),
+        const SizedBox(height: AppSizes.md),
+      ],
+    );
   }
 }

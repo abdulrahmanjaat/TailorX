@@ -12,8 +12,10 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/services/email_service.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../customers/controllers/customers_controller.dart';
 import '../controllers/orders_controller.dart';
 import '../models/order_model.dart';
 
@@ -28,11 +30,90 @@ class OrderReceiptScreen extends ConsumerStatefulWidget {
 
 class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
   final GlobalKey _receiptKey = GlobalKey();
+  bool _emailSent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Send email automatically when receipt screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sendReceiptEmail();
+    });
+  }
+
+  Future<void> _sendReceiptEmail() async {
+    if (_emailSent) return;
+
+    final orders = ref.read(ordersProvider);
+    final order = orders.where((item) => item.id == widget.orderId).firstOrNull;
+
+    if (order == null) return;
+
+    final customers = ref.read(customersProvider);
+    final customer = customers
+        .where((c) => c.id == order.customerId)
+        .firstOrNull;
+    final customerEmail = customer?.email;
+
+    if (customerEmail == null || customerEmail.isEmpty) return;
+
+    // Prepare order items data
+    final orderItems = order.items.map((item) {
+      return {
+        'orderType': item.orderType,
+        'quantity': item.quantity,
+        'unitPrice': item.unitPrice,
+        'lineTotal': item.lineTotal,
+      };
+    }).toList();
+
+    // Send email
+    final emailSent = await EmailService.sendReceiptEmail(
+      recipientEmail: customerEmail,
+      customerName: order.customerName,
+      orderId: order.id,
+      orderItems: orderItems,
+      subtotal: order.subtotal,
+      advanceAmount: order.advanceAmount,
+      remainingAmount: order.remainingAmount,
+      deliveryDate: order.deliveryDate,
+      notes: order.notes,
+    );
+
+    if (mounted) {
+      setState(() {
+        _emailSent = true;
+      });
+
+      if (emailSent) {
+        SnackbarService.showSuccess(
+          context,
+          message: 'Receipt sent to $customerEmail',
+        );
+      } else if (EmailService.isConfigured) {
+        SnackbarService.showError(
+          context,
+          message: 'Failed to send email. Please check configuration.',
+        );
+      }
+      // If not configured, silently skip (no error shown)
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final orders = ref.watch(ordersProvider);
     final order = orders.where((item) => item.id == widget.orderId).firstOrNull;
+
+    // Get customer email for future email sending
+    String? customerEmail;
+    if (order != null) {
+      final customers = ref.watch(customersProvider);
+      final customer = customers
+          .where((c) => c.id == order.customerId)
+          .firstOrNull;
+      customerEmail = customer?.email;
+    }
 
     if (order == null) {
       return AppScaffold(
@@ -67,6 +148,7 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
               child: RepaintBoundary(
                 key: _receiptKey,
                 child: Container(
+                  constraints: const BoxConstraints(maxWidth: double.infinity),
                   padding: const EdgeInsets.all(AppSizes.xl),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -80,65 +162,106 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                     ],
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Top-left: TailorX branding
                       Text(
                         'TailorX',
-                        style: AppTextStyles.headlineMedium.copyWith(
-                          fontWeight: FontWeight.w700,
+                        style: AppTextStyles.caption.copyWith(
                           color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: AppSizes.md),
+                      // Shop Name (highlighted/bold)
+                      Text(
+                        'Premium Tailor Shop',
+                        style: AppTextStyles.headlineMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.sm),
+                      // Tailor Name and Phone
+                      Text(
+                        'Tailor: Muhammad Ali',
+                        style: AppTextStyles.bodyRegular,
+                      ),
                       const SizedBox(height: AppSizes.xs),
+                      Text(
+                        'Phone: +92 300 1234567',
+                        style: AppTextStyles.bodyRegular,
+                      ),
+                      const SizedBox(height: AppSizes.lg),
+                      const Divider(),
+                      const SizedBox(height: AppSizes.md),
+                      // Receipt title
                       Text(
                         'Order Receipt',
                         style: AppTextStyles.titleLarge.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const Divider(height: AppSizes.xl),
+                      const SizedBox(height: AppSizes.md),
+                      const Divider(),
+                      const SizedBox(height: AppSizes.md),
                       _ReceiptRow('Customer Name', order.customerName),
                       const SizedBox(height: AppSizes.sm),
                       _ReceiptRow('Order ID', order.id),
-                      const SizedBox(height: AppSizes.sm),
-                      _ReceiptRow('Order Type', order.orderType),
                       const SizedBox(height: AppSizes.sm),
                       _ReceiptRow('Gender', order.gender),
                       const SizedBox(height: AppSizes.md),
                       const Divider(),
                       const SizedBox(height: AppSizes.md),
                       Text(
-                        'Measurements Summary',
+                        'Order Items',
                         style: AppTextStyles.bodyLarge.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: AppSizes.sm),
-                      ...order.measurementMap.entries
-                          .take(10)
-                          .map(
-                            (entry) => Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: AppSizes.xs,
-                              ),
-                              child: Row(
+                      ...order.items.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                          child: Column(
+                            children: [
+                              Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    _label(entry.key),
-                                    style: AppTextStyles.bodyRegular,
+                                  Flexible(
+                                    child: Text(
+                                      item.orderType,
+                                      style: AppTextStyles.bodyRegular.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
+                                  const SizedBox(width: AppSizes.sm),
                                   Text(
-                                    '${entry.value}',
+                                    '\$${item.lineTotal.toStringAsFixed(2)}',
                                     style: AppTextStyles.bodyRegular.copyWith(
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Qty: ${item.quantity} × \$${item.unitPrice.toStringAsFixed(2)}',
+                                    style: AppTextStyles.caption,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
+                        ),
+                      ),
                       const SizedBox(height: AppSizes.md),
                       const Divider(),
                       const SizedBox(height: AppSizes.md),
@@ -150,19 +273,19 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                       const Divider(),
                       const SizedBox(height: AppSizes.md),
                       _ReceiptRow(
-                        'Total Amount',
-                        'PKR ${order.totalAmount.toStringAsFixed(0)}',
+                        'Subtotal',
+                        '\$${order.subtotal.toStringAsFixed(2)}',
                         isBold: true,
                       ),
                       const SizedBox(height: AppSizes.sm),
                       _ReceiptRow(
                         'Advance Amount',
-                        'PKR ${order.advanceAmount.toStringAsFixed(0)}',
+                        '\$${order.advanceAmount.toStringAsFixed(2)}',
                       ),
                       const SizedBox(height: AppSizes.sm),
                       _ReceiptRow(
-                        'Balance',
-                        'PKR ${order.remainingAmount.toStringAsFixed(0)}',
+                        'Remaining Amount',
+                        '\$${order.remainingAmount.toStringAsFixed(2)}',
                         isBold: true,
                         color: AppColors.primary,
                       ),
@@ -200,6 +323,40 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
+                      // Email sending status
+                      if (customerEmail != null &&
+                          customerEmail.isNotEmpty) ...[
+                        const SizedBox(height: AppSizes.md),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _emailSent
+                                  ? Icons.check_circle
+                                  : Icons.email_outlined,
+                              size: 16,
+                              color: _emailSent ? Colors.green : Colors.grey,
+                            ),
+                            const SizedBox(width: AppSizes.xs),
+                            Flexible(
+                              child: Text(
+                                _emailSent
+                                    ? 'Receipt sent to: $customerEmail'
+                                    : 'Sending receipt to: $customerEmail',
+                                style: AppTextStyles.caption.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: _emailSent
+                                      ? Colors.green
+                                      : Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -231,7 +388,8 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                 Expanded(
                   child: AppButton(
                     label: 'Share',
-                    onPressed: () => _shareToWhatsApp(context, order),
+                    onPressed: () =>
+                        _shareToWhatsApp(context, order, customerEmail),
                   ),
                 ),
               ],
@@ -272,7 +430,11 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
     }
   }
 
-  Future<void> _shareToWhatsApp(BuildContext context, OrderModel order) async {
+  Future<void> _shareToWhatsApp(
+    BuildContext context,
+    OrderModel order,
+    String? customerEmail,
+  ) async {
     final message =
         '''
 *TailorX Order Receipt*
@@ -284,38 +446,27 @@ Gender: ${order.gender}
 
 Delivery Date: ${order.deliveryDate.day}/${order.deliveryDate.month}/${order.deliveryDate.year}
 
-Total: PKR ${order.totalAmount.toStringAsFixed(0)}
-Advance: PKR ${order.advanceAmount.toStringAsFixed(0)}
-Balance: PKR ${order.remainingAmount.toStringAsFixed(0)}
+Total: \$${order.totalAmount.toStringAsFixed(0)}
+Advance: \$${order.advanceAmount.toStringAsFixed(0)}
+Balance: \$${order.remainingAmount.toStringAsFixed(0)}
 
 Thank you for choosing our tailoring services.
 ''';
 
     await Share.share(message);
+
+    // Placeholder for future email sending
+    // TODO: Implement email sending functionality
+    // if (customerEmail != null && customerEmail.isNotEmpty) {
+    //   await _sendReceiptEmail(order, customerEmail);
+    // }
   }
 
-  String _label(String key) {
-    switch (key) {
-      case 'pantLength':
-        return 'Pant Length';
-      case 'forkLength':
-        return 'Fork Length';
-      case 'backWidth':
-        return 'Back Width';
-      case 'frontLength':
-        return 'Front Length';
-      case 'shirtLength':
-        return 'Shirt Length';
-      case 'kameezLength':
-        return 'Kameez Length';
-      case 'trouserLength':
-        return 'Trouser Length';
-      case 'armhole':
-        return 'Armhole';
-      default:
-        return key[0].toUpperCase() + key.substring(1);
-    }
-  }
+  // Placeholder method for future email sending
+  // Future<void> _sendReceiptEmail(OrderModel order, String email) async {
+  //   // TODO: Implement email sending logic
+  //   // This will be implemented when email service is integrated
+  // }
 }
 
 class _ReceiptRow extends StatelessWidget {
@@ -330,16 +481,27 @@ class _ReceiptRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: AppTextStyles.bodyRegular.copyWith(color: Colors.grey[600]),
+        Flexible(
+          flex: 2,
+          child: Text(
+            label,
+            style: AppTextStyles.bodyRegular.copyWith(color: Colors.grey[600]),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        Text(
-          value,
-          style: AppTextStyles.bodyRegular.copyWith(
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-            color: color ?? Colors.black,
+        const SizedBox(width: AppSizes.sm),
+        Flexible(
+          flex: 3,
+          child: Text(
+            value,
+            style: AppTextStyles.bodyRegular.copyWith(
+              fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+              color: color ?? Colors.black,
+            ),
+            textAlign: TextAlign.right,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

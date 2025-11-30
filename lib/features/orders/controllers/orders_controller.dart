@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/order_item_model.dart';
 import '../models/order_model.dart';
 
 class OrdersController extends StateNotifier<List<OrderModel>> {
@@ -10,17 +11,23 @@ class OrdersController extends StateNotifier<List<OrderModel>> {
       id: 'ord-1',
       customerId: 'cus-1',
       customerName: 'Ahmed Ali',
-      orderType: 'Pant Coat',
+      items: [
+        const OrderItem(
+          orderType: 'Pant Coat',
+          quantity: 1,
+          unitPrice: 35000,
+          measurementId: 'mea-1',
+          measurementMap: {
+            'chest': 42,
+            'shoulder': 18,
+            'sleeve': 25,
+            'waist': 36,
+            'hip': 40,
+            'pantLength': 40,
+          },
+        ),
+      ],
       gender: 'Male',
-      measurementId: 'mea-1',
-      measurementMap: const {
-        'chest': 42,
-        'shoulder': 18,
-        'sleeve': 25,
-        'waist': 36,
-        'hip': 40,
-        'pantLength': 40,
-      },
       deliveryDate: DateTime.now().add(const Duration(days: 10)),
       createdAt: DateTime.now().subtract(const Duration(days: 3)),
       status: OrderStatus.newOrder,
@@ -32,17 +39,23 @@ class OrdersController extends StateNotifier<List<OrderModel>> {
       id: 'ord-2',
       customerId: 'cus-2',
       customerName: 'Fatima Khan',
-      orderType: 'Shalwar Kameez',
+      items: [
+        const OrderItem(
+          orderType: 'Shalwar Kameez',
+          quantity: 1,
+          unitPrice: 80000,
+          measurementId: 'mea-2',
+          measurementMap: {
+            'chest': 36,
+            'shoulder': 15,
+            'sleeve': 22,
+            'waist': 30,
+            'hip': 38,
+            'pantLength': 38,
+          },
+        ),
+      ],
       gender: 'Female',
-      measurementId: 'mea-2',
-      measurementMap: const {
-        'chest': 36,
-        'shoulder': 15,
-        'sleeve': 22,
-        'waist': 30,
-        'hip': 38,
-        'pantLength': 38,
-      },
       deliveryDate: DateTime.now().add(const Duration(days: 20)),
       createdAt: DateTime.now().subtract(const Duration(days: 6)),
       status: OrderStatus.inProgress,
@@ -54,17 +67,23 @@ class OrdersController extends StateNotifier<List<OrderModel>> {
       id: 'ord-3',
       customerId: 'cus-3',
       customerName: 'Hassan Raza',
-      orderType: 'Kurta',
+      items: [
+        const OrderItem(
+          orderType: 'Kurta',
+          quantity: 1,
+          unitPrice: 25000,
+          measurementId: 'mea-3',
+          measurementMap: {
+            'chest': 44,
+            'shoulder': 19,
+            'sleeve': 26,
+            'waist': 38,
+            'hip': 42,
+            'pantLength': 41,
+          },
+        ),
+      ],
       gender: 'Male',
-      measurementId: 'mea-3',
-      measurementMap: const {
-        'chest': 44,
-        'shoulder': 19,
-        'sleeve': 26,
-        'waist': 38,
-        'hip': 42,
-        'pantLength': 41,
-      },
       deliveryDate: DateTime.now().add(const Duration(days: 5)),
       createdAt: DateTime.now().subtract(const Duration(days: 12)),
       status: OrderStatus.completed,

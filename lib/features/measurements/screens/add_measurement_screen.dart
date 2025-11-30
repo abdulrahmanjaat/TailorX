@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_buttons.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_inputs.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../../shared/widgets/custom_card.dart';
 import '../../customers/controllers/customers_controller.dart';
 import '../controllers/measurements_controller.dart';
 import '../models/measurement_model.dart';
@@ -125,6 +126,7 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
   }
 
   bool _customerFromRoute = false;
+  String? _editingMeasurementId;
 
   void _loadParamsFromRoute() {
     final uri = GoRouterState.of(context).uri;
@@ -135,6 +137,36 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
         _selectedCustomerId = params['customerId'];
         _customerFromRoute = true;
       });
+    }
+
+    // Load measurement for editing
+    if (params.containsKey('measurementId')) {
+      _editingMeasurementId = params['measurementId'];
+      final measurements = ref.read(measurementsProvider);
+      try {
+        final measurement = measurements.firstWhere(
+          (m) => m.id == _editingMeasurementId,
+        );
+        setState(() {
+          _selectedCustomerId = measurement.customerId;
+          _customerFromRoute = true;
+          _gender = measurement.gender;
+          _selectedOrderType = measurement.orderType == 'Custom'
+              ? 'Custom'
+              : measurement.orderType;
+          // Prefill controllers with measurement values
+          measurement.values.forEach((key, value) {
+            if (_controllers.containsKey(key)) {
+              _controllers[key]!.text = value.toString();
+            }
+          });
+          if (measurement.notes != null) {
+            _notesController.text = measurement.notes!;
+          }
+        });
+      } catch (_) {
+        // Measurement not found
+      }
     }
   }
 
@@ -208,13 +240,41 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
       createdAt: DateTime.now(),
     );
 
-    ref.read(measurementsProvider.notifier).addMeasurement(measurement);
+    if (_editingMeasurementId != null) {
+      // Update existing measurement
+      final existingMeasurement = ref
+          .read(measurementsProvider)
+          .firstWhere((m) => m.id == _editingMeasurementId);
 
-    // Redirect to Add Order Screen with measurement data
-    if (mounted) {
-      context.pushReplacement(
-        '${AppRoutes.addOrder}?customerId=${customer.id}&customerName=${Uri.encodeComponent(customer.name)}&phone=${Uri.encodeComponent(customer.phone)}&gender=${_gender.name}&orderType=${Uri.encodeComponent(orderType)}&measurementId=${measurement.id}',
+      final updatedMeasurement = existingMeasurement.copyWith(
+        gender: _gender,
+        orderType: orderType,
+        values: values,
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
+
+      ref
+          .read(measurementsProvider.notifier)
+          .updateMeasurement(updatedMeasurement);
+      SnackbarService.showSuccess(context, message: 'Measurement updated');
+      if (mounted) {
+        context.pop();
+      }
+    } else {
+      // Add new measurement
+      ref.read(measurementsProvider.notifier).addMeasurement(measurement);
+      SnackbarService.showSuccess(
+        context,
+        message: 'Measurement saved successfully',
+      );
+      // Redirect to Add Order Screen with measurement data
+      if (mounted) {
+        context.pushReplacement(
+          '${AppRoutes.addOrder}?customerId=${customer.id}&customerName=${Uri.encodeComponent(customer.name)}&phone=${Uri.encodeComponent(customer.phone)}&gender=${_gender.name}&orderType=${Uri.encodeComponent(orderType)}&measurementId=${measurement.id}',
+        );
+      }
     }
   }
 
@@ -230,7 +290,9 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
     });
 
     return AppScaffold(
-      title: 'Add Measurement',
+      title: _editingMeasurementId != null
+          ? 'Edit Measurement'
+          : 'Add Measurement',
       padding: const EdgeInsets.all(AppSizes.lg),
       body: Form(
         key: _formKey,
@@ -238,26 +300,54 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCustomerId,
-                items: customers
-                    .map(
-                      (customer) => DropdownMenuItem(
-                        value: customer.id,
-                        child: Text(customer.name),
+              if (_customerFromRoute && _selectedCustomerId != null)
+                CustomCard(
+                  padding: const EdgeInsets.all(AppSizes.md),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person, color: AppColors.primary),
+                      const SizedBox(width: AppSizes.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Customer', style: AppTextStyles.caption),
+                            Text(
+                              customers
+                                  .firstWhere(
+                                    (c) => c.id == _selectedCustomerId,
+                                  )
+                                  .name,
+                              style: AppTextStyles.bodyLarge.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    )
-                    .toList(),
-                onChanged: _customerFromRoute
-                    ? null // Disable if customer came from route
-                    : (value) => setState(() => _selectedCustomerId = value),
-                decoration: const InputDecoration(
-                  labelText: 'Select Customer',
-                  prefixIcon: Icon(Icons.person_outline),
+                    ],
+                  ),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  value: _selectedCustomerId,
+                  items: customers
+                      .map(
+                        (customer) => DropdownMenuItem(
+                          value: customer.id,
+                          child: Text(customer.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setState(() => _selectedCustomerId = value),
+                  decoration: const InputDecoration(
+                    labelText: 'Select Customer',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  validator: (value) =>
+                      value == null ? 'Customer required' : null,
                 ),
-                validator: (value) =>
-                    value == null ? 'Customer required' : null,
-              ),
               const SizedBox(height: AppSizes.lg),
               Text('Gender', style: AppTextStyles.titleLarge),
               const SizedBox(height: AppSizes.sm),
@@ -365,7 +455,9 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
               ),
               const SizedBox(height: AppSizes.xl),
               AppButton(
-                label: 'Save & Create Order',
+                label: _editingMeasurementId != null
+                    ? 'Update Measurement'
+                    : 'Save & Create Order',
                 onPressed: _saveMeasurement,
               ),
               const SizedBox(height: AppSizes.md),

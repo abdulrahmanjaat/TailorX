@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_scaffold.dart';
@@ -35,35 +34,47 @@ class CustomerDetailScreen extends ConsumerWidget {
         .where((o) => o.customerId == customer.id)
         .toList();
 
+    // Group measurements by order type
+    final groupedMeasurements = <String, List<MeasurementModel>>{};
+    for (final measurement in measurements) {
+      final key = measurement.orderType;
+      groupedMeasurements.putIfAbsent(key, () => []).add(measurement);
+    }
+
+    // Group orders by measurement (orders linked to measurements)
+    final ordersByMeasurement = <String, List<OrderModel>>{};
+    for (final order in orders) {
+      if (order.measurementId != null) {
+        ordersByMeasurement
+            .putIfAbsent(order.measurementId!, () => [])
+            .add(order);
+      }
+    }
+
     return AppScaffold(
       title: 'Customer Details',
       padding: const EdgeInsets.all(AppSizes.lg),
+      floatingActionButton: _buildFloatingActionButtons(context, customer),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _HeaderCard(customer: customer),
             const SizedBox(height: AppSizes.lg),
-            _SectionHeader(
-              title: 'Measurements',
-              trailing: measurements.isEmpty
-                  ? AppButton(
-                      label: 'Add',
-                      onPressed: () => context.push(AppRoutes.addMeasurement),
-                      type: AppButtonType.secondary,
-                      isSmall: true,
-                    )
-                  : null,
-            ),
+            _SectionHeader(title: 'Measurements by Type'),
             const SizedBox(height: AppSizes.sm),
             if (measurements.isEmpty)
               const _EmptyState(message: 'No measurements recorded yet.')
             else
-              ...measurements.map(
-                (measurement) => _MeasurementCard(measurement: measurement),
+              ...groupedMeasurements.entries.map(
+                (entry) => _MeasurementGroupCard(
+                  orderType: entry.key,
+                  measurements: entry.value,
+                  ordersByMeasurement: ordersByMeasurement,
+                ),
               ),
             const SizedBox(height: AppSizes.lg),
-            _SectionHeader(title: 'Orders'),
+            _SectionHeader(title: 'All Orders'),
             const SizedBox(height: AppSizes.sm),
             if (orders.isEmpty)
               const _EmptyState(message: 'No orders yet.')
@@ -73,6 +84,36 @@ class CustomerDetailScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFloatingActionButtons(
+    BuildContext context,
+    CustomerModel customer,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FloatingActionButton(
+          heroTag: 'add_measurement',
+          onPressed: () => context.push(
+            '${AppRoutes.addMeasurement}?customerId=${customer.id}',
+          ),
+          backgroundColor: AppColors.primary,
+          child: const Icon(Icons.straighten, color: AppColors.background),
+        ),
+        const SizedBox(height: AppSizes.md),
+        FloatingActionButton(
+          heroTag: 'add_order',
+          onPressed: () =>
+              context.push('${AppRoutes.addOrder}?customerId=${customer.id}'),
+          backgroundColor: AppColors.secondary,
+          child: const Icon(
+            Icons.add_shopping_cart,
+            color: AppColors.background,
+          ),
+        ),
+      ],
     );
   }
 
@@ -140,49 +181,181 @@ class _HeaderCard extends StatelessWidget {
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 }
 
-class _MeasurementCard extends StatelessWidget {
-  const _MeasurementCard({required this.measurement});
+class _MeasurementGroupCard extends StatelessWidget {
+  const _MeasurementGroupCard({
+    required this.orderType,
+    required this.measurements,
+    required this.ordersByMeasurement,
+  });
 
-  final MeasurementModel measurement;
+  final String orderType;
+  final List<MeasurementModel> measurements;
+  final Map<String, List<OrderModel>> ordersByMeasurement;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSizes.md),
+      padding: const EdgeInsets.only(bottom: AppSizes.lg),
       child: CustomCard(
-        onTap: () =>
-            context.push('${AppRoutes.measurementsDetail}/${measurement.id}'),
-        child: Row(
+        padding: const EdgeInsets.all(AppSizes.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              measurement.gender == MeasurementGender.female
-                  ? Icons.female
-                  : Icons.male,
-              color: AppColors.primary,
+            Row(
+              children: [
+                Icon(Icons.category, color: AppColors.primary),
+                const SizedBox(width: AppSizes.sm),
+                Expanded(
+                  child: Text(
+                    orderType,
+                    style: AppTextStyles.titleLarge.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${measurements.length} ${measurements.length == 1 ? 'set' : 'sets'}',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: AppSizes.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${measurement.gender.label} measurements',
-                    style: AppTextStyles.titleLarge,
-                  ),
-                  Text(
-                    'Updated ${_formatDate(measurement.createdAt)}',
-                    style: AppTextStyles.caption,
-                  ),
-                ],
+            const SizedBox(height: AppSizes.md),
+            ...measurements.map(
+              (measurement) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSizes.md),
+                child: _MeasurementCard(
+                  measurement: measurement,
+                  linkedOrders: ordersByMeasurement[measurement.id] ?? [],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: AppSizes.iconSm,
-              color: AppColors.primary,
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MeasurementCard extends StatelessWidget {
+  const _MeasurementCard({
+    required this.measurement,
+    required this.linkedOrders,
+  });
+
+  final MeasurementModel measurement;
+  final List<OrderModel> linkedOrders;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomCard(
+      padding: const EdgeInsets.all(AppSizes.md),
+      onTap: () =>
+          context.push('${AppRoutes.measurementsDetail}/${measurement.id}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                measurement.gender == MeasurementGender.female
+                    ? Icons.female
+                    : Icons.male,
+                color: AppColors.primary,
+                size: AppSizes.iconMd,
+              ),
+              const SizedBox(width: AppSizes.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${measurement.gender.label} - ${_formatDate(measurement.createdAt)}',
+                      style: AppTextStyles.bodyLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (measurement.notes != null &&
+                        measurement.notes!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSizes.xs),
+                        child: Text(
+                          measurement.notes!,
+                          style: AppTextStyles.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (linkedOrders.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.sm,
+                    vertical: AppSizes.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.sm),
+                  ),
+                  child: Text(
+                    '${linkedOrders.length} ${linkedOrders.length == 1 ? 'order' : 'orders'}',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: AppSizes.xs),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: AppSizes.iconSm,
+                color: AppColors.primary,
+              ),
+            ],
+          ),
+          if (linkedOrders.isNotEmpty) ...[
+            const SizedBox(height: AppSizes.sm),
+            const Divider(),
+            const SizedBox(height: AppSizes.sm),
+            Text(
+              'Linked Orders:',
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppSizes.xs),
+            ...linkedOrders.map(
+              (order) => Padding(
+                padding: const EdgeInsets.only(top: AppSizes.xs),
+                child: InkWell(
+                  onTap: () =>
+                      context.push('${AppRoutes.orderDetail}/${order.id}'),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.shopping_bag_outlined,
+                        size: AppSizes.iconSm,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: AppSizes.xs),
+                      Expanded(
+                        child: Text(
+                          '${order.orderType} - ${_formatDate(order.createdAt)}',
+                          style: AppTextStyles.caption,
+                        ),
+                      ),
+                      OrderStatusBadge(status: order.status),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -227,19 +400,13 @@ class _OrderCard extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.trailing});
+  const _SectionHeader({required this.title});
 
   final String title;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: Text(title, style: AppTextStyles.titleLarge)),
-        if (trailing != null) trailing!,
-      ],
-    );
+    return Text(title, style: AppTextStyles.titleLarge);
   }
 }
 
