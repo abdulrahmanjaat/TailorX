@@ -43,7 +43,8 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
   }
 
   void _loadOrder() {
-    final orders = ref.read(ordersProvider);
+    final ordersAsync = ref.read(ordersProvider);
+    final orders = ordersAsync.value ?? [];
     try {
       final order = orders.firstWhere((o) => o.id == widget.orderId);
       setState(() {
@@ -105,7 +106,7 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
     }
   }
 
-  void _saveOrder() {
+  Future<void> _saveOrder() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_order == null) return;
     if (_deliveryDate == null) {
@@ -125,11 +126,10 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
           : _notesController.text.trim(),
     );
 
-    ref.read(ordersProvider.notifier).updateOrder(updatedOrder);
-    SnackbarService.showSuccess(context, message: 'Order updated');
-
-    // Redirect back to order detail screen
+    await ref.read(ordersProvider.notifier).updateOrder(updatedOrder);
     if (mounted) {
+      SnackbarService.showSuccess(context, message: 'Order updated');
+      // Redirect back to order detail screen
       context.pop();
     }
   }
@@ -276,7 +276,9 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: AppSizes.xl),
-              AppButton(label: 'Update Order', onPressed: _saveOrder),
+              Center(
+                child: AppButton(label: 'Update Order', onPressed: _saveOrder),
+              ),
               const SizedBox(height: AppSizes.md),
             ],
           ),

@@ -79,7 +79,8 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
       // If customerId is provided, load customer data
       if (params.containsKey('customerId')) {
         _customerId = params['customerId'];
-        final customers = ref.read(customersProvider);
+        final customersAsync = ref.read(customersProvider);
+        final customers = customersAsync.value ?? [];
         try {
           final customer = customers.firstWhere((c) => c.id == _customerId);
           _customerName = customer.name;
@@ -102,7 +103,8 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
 
       // Legacy support: if single measurement comes from route, add it
       if (measurementId != null) {
-        final measurements = ref.read(measurementsProvider);
+        final measurementsAsync = ref.read(measurementsProvider);
+        final measurements = measurementsAsync.value ?? [];
         try {
           final measurement = measurements.firstWhere(
             (m) => m.id == measurementId,
@@ -204,7 +206,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
     }
   }
 
-  void _saveOrder() {
+  Future<void> _saveOrder() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_customerId == null) {
       SnackbarService.showInfo(context, message: 'Customer is required');
@@ -274,11 +276,13 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
           : _notesController.text.trim(),
     );
 
-    ref.read(ordersProvider.notifier).addOrder(order);
-    SnackbarService.showSuccess(context, message: 'Order created successfully');
-
-    // Redirect to receipt screen
+    await ref.read(ordersProvider.notifier).addOrder(order);
     if (mounted) {
+      SnackbarService.showSuccess(
+        context,
+        message: 'Order created successfully',
+      );
+      // Redirect to receipt screen
       context.pushReplacement('${AppRoutes.orderReceipt}/${order.id}');
     }
   }
@@ -412,7 +416,9 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: AppSizes.xl),
-              AppButton(label: 'Save Order', onPressed: _saveOrder),
+              Center(
+                child: AppButton(label: 'Save Order', onPressed: _saveOrder),
+              ),
               const SizedBox(height: AppSizes.md),
             ],
           ),
@@ -519,7 +525,8 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
   Widget _buildMeasurementSelection(BuildContext context) {
     if (_customerId == null) return const SizedBox.shrink();
 
-    final measurements = ref.watch(measurementsProvider);
+    final measurementsAsync = ref.watch(measurementsProvider);
+    final measurements = measurementsAsync.value ?? [];
     final customerMeasurements = measurements
         .where((m) => m.customerId == _customerId)
         .toList();

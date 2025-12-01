@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/phone_number.dart';
 
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/helpers/validators.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_inputs.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
-import '../../../shared/widgets/international_phone_field.dart';
 import '../controllers/customers_controller.dart';
 import '../models/customer_model.dart';
 
@@ -24,9 +28,25 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _phoneFieldKey = GlobalKey<InternationalPhoneFieldState>();
+  PhoneNumber? _phoneNumber;
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
+  String? _initialCountryCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCountryCode();
+  }
+
+  Future<void> _loadCountryCode() async {
+    final countryCode = await SecureStorageService.instance.getCountryCode();
+    if (mounted) {
+      setState(() {
+        _initialCountryCode = countryCode ?? 'PK'; // Default to Pakistan
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -37,17 +57,18 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
     super.dispose();
   }
 
-  void _saveCustomer() {
+  Future<void> _saveCustomer() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final name = _nameController.text.trim();
     // Get full phone number with country code from the phone field
+    // completeNumber includes country code (e.g., +923001234567)
     final phone =
-        _phoneFieldKey.currentState?.getFullPhoneNumber() ??
-        _phoneController.text.trim();
+        _phoneNumber?.completeNumber ??
+        (_phoneController.text.isNotEmpty ? _phoneController.text.trim() : '');
 
     // Check if customer already exists
-    final existingCustomer = ref
+    final existingCustomer = await ref
         .read(customersProvider.notifier)
         .findByPhoneOrName(phone, name);
 
@@ -79,17 +100,31 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
       createdAt: DateTime.now(),
     );
 
-    ref.read(customersProvider.notifier).addCustomer(customer);
-    SnackbarService.showSuccess(
-      context,
-      message: 'Customer created successfully',
-    );
+    try {
+      await ref.read(customersProvider.notifier).addCustomer(customer);
+      if (mounted) {
+        SnackbarService.showSuccess(
+          context,
+          message: 'Customer created successfully',
+        );
 
-    // Redirect to Add Measurement Screen with customer data
-    if (mounted) {
-      context.pushReplacement(
-        '${AppRoutes.addMeasurement}?customerId=${customer.id}&customerName=${Uri.encodeComponent(customer.name)}&phone=${Uri.encodeComponent(customer.phone)}',
-      );
+        // Redirect to Add Measurement Screen with customer data
+        context.pushReplacement(
+          '${AppRoutes.addMeasurement}?customerId=${customer.id}&customerName=${Uri.encodeComponent(customer.name)}&phone=${Uri.encodeComponent(customer.phone)}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = 'Failed to save customer. ';
+        if (e.toString().contains('permission-denied')) {
+          errorMessage += 'Please make sure you are signed in.';
+        } else if (e.toString().contains('not authenticated')) {
+          errorMessage += 'Your session has expired. Please sign in again.';
+        } else {
+          errorMessage += e.toString();
+        }
+        SnackbarService.showError(context, message: errorMessage);
+      }
     }
   }
 
@@ -113,12 +148,86 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
                     Validators.requiredField(value, fieldName: 'Name'),
               ),
               const SizedBox(height: AppSizes.md),
-              InternationalPhoneField(
-                key: _phoneFieldKey,
-                controller: _phoneController,
-                labelText: 'Phone Number',
-                hintText: '1234567890',
-                validator: (value) => Validators.phone(value),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Phone Number',
+                    style: AppTextStyles.bodyRegular.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.xs),
+                  _initialCountryCode == null
+                      ? const SizedBox(
+                          height: 56,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : IntlPhoneField(
+                          controller: _phoneController,
+                          decoration: InputDecoration(
+                            hintText: 'Enter phone number',
+                            hintStyle: AppTextStyles.inputHint.copyWith(
+                              color: AppColors.dark.withValues(alpha: 0.6),
+                            ),
+                            labelStyle: TextStyle(
+                              color: AppColors.dark,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.background,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSizes.md,
+                              vertical: AppSizes.md,
+                            ),
+                            constraints: const BoxConstraints(minHeight: 56),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.borderGray,
+                                width: 1,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.borderGray,
+                                width: 1,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.primary,
+                                width: 2,
+                              ),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.error,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          initialCountryCode: _initialCountryCode ?? 'PK',
+                          onChanged: (phone) {
+                            setState(() {
+                              _phoneNumber = phone;
+                            });
+                          },
+                          validator: (phone) {
+                            if (phone == null || phone.number.isEmpty) {
+                              return 'Phone number is required';
+                            }
+                            // Validate minimum length (10 digits after country code)
+                            if (phone.number.length < 10) {
+                              return 'Phone number must be at least 10 digits';
+                            }
+                            return null;
+                          },
+                        ),
+                ],
               ),
               const SizedBox(height: AppSizes.md),
               TextFormField(
@@ -161,7 +270,12 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
                 maxLines: 2,
               ),
               const SizedBox(height: AppSizes.xl),
-              AppButton(label: 'Save Customer', onPressed: _saveCustomer),
+              Center(
+                child: AppButton(
+                  label: 'Save Customer',
+                  onPressed: _saveCustomer,
+                ),
+              ),
               const SizedBox(height: AppSizes.md),
             ],
           ),

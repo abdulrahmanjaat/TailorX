@@ -1,118 +1,63 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/order_item_model.dart';
 import '../models/order_model.dart';
+import '../repositories/orders_firestore_repository.dart';
+import '../services/orders_service.dart';
 
-class OrdersController extends StateNotifier<List<OrderModel>> {
-  OrdersController() : super(_initialOrders);
-
-  static final _initialOrders = <OrderModel>[
-    OrderModel(
-      id: 'ord-1',
-      customerId: 'cus-1',
-      customerName: 'Ahmed Ali',
-      items: [
-        const OrderItem(
-          orderType: 'Pant Coat',
-          quantity: 1,
-          unitPrice: 35000,
-          measurementId: 'mea-1',
-          measurementMap: {
-            'chest': 42,
-            'shoulder': 18,
-            'sleeve': 25,
-            'waist': 36,
-            'hip': 40,
-            'pantLength': 40,
-          },
-        ),
-      ],
-      gender: 'Male',
-      deliveryDate: DateTime.now().add(const Duration(days: 10)),
-      createdAt: DateTime.now().subtract(const Duration(days: 3)),
-      status: OrderStatus.newOrder,
-      totalAmount: 35000,
-      advanceAmount: 15000,
-      notes: 'Golden embroidery, classic fit',
-    ),
-    OrderModel(
-      id: 'ord-2',
-      customerId: 'cus-2',
-      customerName: 'Fatima Khan',
-      items: [
-        const OrderItem(
-          orderType: 'Shalwar Kameez',
-          quantity: 1,
-          unitPrice: 80000,
-          measurementId: 'mea-2',
-          measurementMap: {
-            'chest': 36,
-            'shoulder': 15,
-            'sleeve': 22,
-            'waist': 30,
-            'hip': 38,
-            'pantLength': 38,
-          },
-        ),
-      ],
-      gender: 'Female',
-      deliveryDate: DateTime.now().add(const Duration(days: 20)),
-      createdAt: DateTime.now().subtract(const Duration(days: 6)),
-      status: OrderStatus.inProgress,
-      totalAmount: 80000,
-      advanceAmount: 30000,
-      notes: 'Lightweight fabric, pastel tones',
-    ),
-    OrderModel(
-      id: 'ord-3',
-      customerId: 'cus-3',
-      customerName: 'Hassan Raza',
-      items: [
-        const OrderItem(
-          orderType: 'Kurta',
-          quantity: 1,
-          unitPrice: 25000,
-          measurementId: 'mea-3',
-          measurementMap: {
-            'chest': 44,
-            'shoulder': 19,
-            'sleeve': 26,
-            'waist': 38,
-            'hip': 42,
-            'pantLength': 41,
-          },
-        ),
-      ],
-      gender: 'Male',
-      deliveryDate: DateTime.now().add(const Duration(days: 5)),
-      createdAt: DateTime.now().subtract(const Duration(days: 12)),
-      status: OrderStatus.completed,
-      totalAmount: 25000,
-      advanceAmount: 25000,
-      notes: 'Deliver with premium packaging',
-    ),
-  ];
-
-  void addOrder(OrderModel order) {
-    state = [...state, order];
+class OrdersController extends StateNotifier<AsyncValue<List<OrderModel>>> {
+  OrdersController(this._repository) : super(const AsyncValue.loading()) {
+    _loadOrders();
   }
 
-  void updateOrder(OrderModel order) {
-    state = state.map((item) => item.id == order.id ? order : item).toList();
+  final OrdersFirestoreRepository _repository;
+
+  Future<void> _loadOrders() async {
+    try {
+      final orders = await _repository.getAllOrders();
+      state = AsyncValue.data(orders);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
+    }
   }
 
-  void deleteOrder(String id) {
-    state = state.where((order) => order.id != id).toList();
+  Future<void> addOrder(OrderModel order) async {
+    try {
+      await _repository.addOrder(order);
+      await _loadOrders(); // Reload to get updated list
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  void updateStatus(String id, OrderStatus status) {
-    state = state
-        .map((order) => order.id == id ? order.copyWith(status: status) : order)
-        .toList();
+  Future<void> updateOrder(OrderModel order) async {
+    try {
+      await _repository.updateOrder(order);
+      await _loadOrders(); // Reload to get updated list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteOrder(String id) async {
+    try {
+      await _repository.deleteOrder(id);
+      await _loadOrders(); // Reload to get updated list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateStatus(String id, OrderStatus status) async {
+    try {
+      await _repository.updateOrderStatus(id, status);
+      await _loadOrders(); // Reload to get updated list
+    } catch (e) {
+      rethrow;
+    }
   }
 }
 
 final ordersProvider =
-    StateNotifierProvider<OrdersController, List<OrderModel>>(
-      (ref) => OrdersController(),
+    StateNotifierProvider<OrdersController, AsyncValue<List<OrderModel>>>(
+      (ref) => OrdersController(ref.read(ordersFirestoreRepositoryProvider)),
     );

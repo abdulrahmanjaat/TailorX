@@ -55,6 +55,10 @@ class OnboardingController extends StateNotifier<OnboardingState> {
 
   final List<OnboardingPage> _pages;
 
+  void reset() {
+    state = const OnboardingState(index: 0, completed: false);
+  }
+
   void updateIndex(int index) {
     state = state.copyWith(index: index.clamp(0, _pages.length - 1));
   }

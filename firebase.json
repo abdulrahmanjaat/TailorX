@@ -1,0 +1,25 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "tailorx-jaat001",
+          "appId": "1:61258568836:android:bde014d18d558560ee1ed1",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "tailorx-jaat001",
+          "configurations": {
+            "android": "1:61258568836:android:bde014d18d558560ee1ed1",
+            "web": "1:61258568836:web:0740cba7ccbbcd0cee1ed1"
+          }
+        }
+      }
+    }
+  }
+}

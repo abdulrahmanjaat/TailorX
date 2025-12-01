@@ -142,7 +142,8 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
     // Load measurement for editing
     if (params.containsKey('measurementId')) {
       _editingMeasurementId = params['measurementId'];
-      final measurements = ref.read(measurementsProvider);
+      final measurementsAsync = ref.read(measurementsProvider);
+      final measurements = measurementsAsync.value ?? [];
       try {
         final measurement = measurements.firstWhere(
           (m) => m.id == _editingMeasurementId,
@@ -192,7 +193,7 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
     return _gender == MeasurementGender.male ? _maleFields : _femaleFields;
   }
 
-  void _saveMeasurement() {
+  Future<void> _saveMeasurement() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_selectedCustomerId == null) {
       SnackbarService.showInfo(context, message: 'Select customer');
@@ -216,7 +217,8 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
       orderType = _selectedOrderType!;
     }
 
-    final customers = ref.read(customersProvider);
+    final customersAsync = ref.read(customersProvider);
+    final customers = customersAsync.value ?? [];
     final customer = customers.firstWhere((c) => c.id == _selectedCustomerId);
 
     final values = <String, double>{};
@@ -242,9 +244,11 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
 
     if (_editingMeasurementId != null) {
       // Update existing measurement
-      final existingMeasurement = ref
-          .read(measurementsProvider)
-          .firstWhere((m) => m.id == _editingMeasurementId);
+      final measurementsAsync = ref.read(measurementsProvider);
+      final measurements = measurementsAsync.value ?? [];
+      final existingMeasurement = measurements.firstWhere(
+        (m) => m.id == _editingMeasurementId,
+      );
 
       final updatedMeasurement = existingMeasurement.copyWith(
         gender: _gender,
@@ -255,22 +259,22 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
             : _notesController.text.trim(),
       );
 
-      ref
+      await ref
           .read(measurementsProvider.notifier)
           .updateMeasurement(updatedMeasurement);
-      SnackbarService.showSuccess(context, message: 'Measurement updated');
       if (mounted) {
+        SnackbarService.showSuccess(context, message: 'Measurement updated');
         context.pop();
       }
     } else {
       // Add new measurement
-      ref.read(measurementsProvider.notifier).addMeasurement(measurement);
-      SnackbarService.showSuccess(
-        context,
-        message: 'Measurement saved successfully',
-      );
-      // Redirect to Add Order Screen with measurement data
+      await ref.read(measurementsProvider.notifier).addMeasurement(measurement);
       if (mounted) {
+        SnackbarService.showSuccess(
+          context,
+          message: 'Measurement saved successfully',
+        );
+        // Redirect to Add Order Screen with measurement data
         context.pushReplacement(
           '${AppRoutes.addOrder}?customerId=${customer.id}&customerName=${Uri.encodeComponent(customer.name)}&phone=${Uri.encodeComponent(customer.phone)}&gender=${_gender.name}&orderType=${Uri.encodeComponent(orderType)}&measurementId=${measurement.id}',
         );
@@ -280,7 +284,8 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customers = ref.watch(customersProvider);
+    final customersAsync = ref.watch(customersProvider);
+    final customers = customersAsync.value ?? [];
 
     // Ensure controllers are initialized for current fields
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -454,11 +459,13 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: AppSizes.xl),
-              AppButton(
-                label: _editingMeasurementId != null
-                    ? 'Update Measurement'
-                    : 'Save & Create Order',
-                onPressed: _saveMeasurement,
+              Center(
+                child: AppButton(
+                  label: _editingMeasurementId != null
+                      ? 'Update Measurement'
+                      : 'Save & Create Order',
+                  onPressed: _saveMeasurement,
+                ),
               ),
               const SizedBox(height: AppSizes.md),
             ],

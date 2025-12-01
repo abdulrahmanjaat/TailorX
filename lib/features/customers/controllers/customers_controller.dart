@@ -1,54 +1,58 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/customer_model.dart';
+import '../repositories/customers_firestore_repository.dart';
+import '../services/customers_service.dart';
 
-class CustomersController extends StateNotifier<List<CustomerModel>> {
-  CustomersController() : super(_initialCustomers);
-
-  static final _initialCustomers = <CustomerModel>[
-    CustomerModel(
-      id: 'cus-1',
-      name: 'Ahmed Ali',
-      phone: '+92 300 1234567',
-      email: 'ahmed.taylor@example.com',
-      address: 'Lahore, Pakistan',
-      createdAt: DateTime.now().subtract(const Duration(days: 40)),
-    ),
-    CustomerModel(
-      id: 'cus-2',
-      name: 'Fatima Khan',
-      phone: '+92 301 9876543',
-      email: 'fatima.couture@example.com',
-      address: 'Karachi, Pakistan',
-      createdAt: DateTime.now().subtract(const Duration(days: 25)),
-    ),
-    CustomerModel(
-      id: 'cus-3',
-      name: 'Hassan Raza',
-      phone: '+92 302 7654321',
-      email: 'hassan.studio@example.com',
-      address: 'Islamabad, Pakistan',
-      createdAt: DateTime.now().subtract(const Duration(days: 18)),
-    ),
-  ];
-
-  void addCustomer(CustomerModel customer) {
-    state = [...state, customer];
+class CustomersController
+    extends StateNotifier<AsyncValue<List<CustomerModel>>> {
+  CustomersController(this._repository) : super(const AsyncValue.loading()) {
+    _loadCustomers();
   }
 
-  void updateCustomer(CustomerModel customer) {
-    state = state
-        .map((item) => item.id == customer.id ? customer : item)
-        .toList();
+  final CustomersFirestoreRepository _repository;
+
+  Future<void> _loadCustomers() async {
+    try {
+      final customers = await _repository.getAllCustomers();
+      state = AsyncValue.data(customers);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
+    }
   }
 
-  void deleteCustomer(String id) {
-    state = state.where((customer) => customer.id != id).toList();
+  Future<void> addCustomer(CustomerModel customer) async {
+    try {
+      await _repository.addCustomer(customer);
+      await _loadCustomers(); // Reload to get updated list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateCustomer(CustomerModel customer) async {
+    try {
+      await _repository.updateCustomer(customer);
+      await _loadCustomers(); // Reload to get updated list
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    try {
+      await _repository.deleteCustomer(id);
+      await _loadCustomers(); // Reload to get updated list
+    } catch (e) {
+      rethrow;
+    }
   }
 
   CustomerModel? byId(String id) {
+    final customers = state.value;
+    if (customers == null) return null;
     try {
-      return state.firstWhere((customer) => customer.id == id);
+      return customers.firstWhere((customer) => customer.id == id);
     } catch (_) {
       return null;
     }
@@ -56,15 +60,9 @@ class CustomersController extends StateNotifier<List<CustomerModel>> {
 
   /// Finds a customer by phone number or name (case-insensitive)
   /// Returns the first matching customer or null if not found
-  CustomerModel? findByPhoneOrName(String phone, String name) {
+  Future<CustomerModel?> findByPhoneOrName(String phone, String name) async {
     try {
-      final phoneLower = phone.trim().toLowerCase();
-      final nameLower = name.trim().toLowerCase();
-      return state.firstWhere(
-        (customer) =>
-            customer.phone.toLowerCase() == phoneLower ||
-            customer.name.toLowerCase() == nameLower,
-      );
+      return await _repository.findByPhoneOrName(phone, name);
     } catch (_) {
       return null;
     }
@@ -72,6 +70,7 @@ class CustomersController extends StateNotifier<List<CustomerModel>> {
 }
 
 final customersProvider =
-    StateNotifierProvider<CustomersController, List<CustomerModel>>(
-      (ref) => CustomersController(),
+    StateNotifierProvider<CustomersController, AsyncValue<List<CustomerModel>>>(
+      (ref) =>
+          CustomersController(ref.read(customersFirestoreRepositoryProvider)),
     );

@@ -366,10 +366,14 @@ All business logic lives inside feature-specific `controllers/` (StateNotifiers)
 
 - `flutter_riverpod`: State management
 - `go_router`: Declarative routing
-- `shared_preferences`: Local storage
+- `firebase_core`: Firebase initialization
+- `firebase_auth`: User authentication
+- `cloud_firestore`: Cloud Firestore database
+- `flutter_secure_storage`: Secure local storage for sensitive data
 - `share_plus`: Share functionality for receipts
 - `path_provider`: File system access for receipt downloads
 - `image_picker`: Profile image selection
+- `intl_phone_field`: International phone number input
 - Additional packages as defined in `pubspec.yaml`
 
 ---
@@ -429,6 +433,39 @@ tailorx_app/
 - **Dart**: 3.0 or higher
 - **Android Studio / VS Code**: With Flutter extensions
 - **Device/Emulator**: Android device, iOS simulator, or web browser
+- **Firebase Account**: For authentication and data storage
+
+### Firebase Setup
+
+This app uses Firebase for authentication and Firestore for data storage. Follow these steps to set up Firebase:
+
+1. **Create Firebase Project**
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Create a new project or use an existing one
+   - Enable Authentication (Email/Password)
+   - Enable Cloud Firestore
+
+2. **Configure Android**
+   - Download `google-services.json` from Firebase Console
+   - Place it in `android/app/google-services.json`
+   - The file is already included in the project
+
+3. **Configure Web** (if needed)
+   - Firebase web configuration is handled automatically via `firebase_options.dart`
+   - Generated using `flutterfire configure`
+
+4. **Deploy Firestore Rules**
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
+   - This deploys the security rules from `firestore.rules`
+   - Rules ensure users can only access their own data
+
+5. **Firebase Configuration Files**
+   - `firebase.json`: Firebase project configuration
+   - `firestore.rules`: Security rules for Firestore
+   - `lib/firebase_options.dart`: Auto-generated Firebase options
+   - `android/app/google-services.json`: Android Firebase config
 
 ### Installation Steps
 
@@ -520,17 +557,98 @@ flutter build web --release
 
 ### Data Structure
 
-- **Customers**: Stored in `CustomersController` (StateNotifier)
-- **Measurements**: Stored in `MeasurementsController` (StateNotifier)
-- **Orders**: Stored in `OrdersController` (StateNotifier)
+- **Customers**: Stored in Firestore at `users/{uid}/customers/{customerId}`
+- **Measurements**: Stored in Firestore at `users/{uid}/measurements/{measurementId}`
+- **Orders**: Stored in Firestore at `users/{uid}/orders/{orderId}`
+- **Profile**: Stored in Firestore at `users/{uid}`
 
-**Note**: Currently, data is stored in memory. For production, consider implementing persistent storage (SQLite, Hive, or backend API).
+**Data Isolation**: All data is scoped to the authenticated user's UID, ensuring complete multi-user isolation. Each user can only access their own data. See `FIRESTORE_DATA_ISOLATION.md` for detailed architecture documentation.
+
+**Data Persistence**: 
+- Data persists in Firestore across login sessions
+- Local secure storage is used for offline access and faster retrieval
+- On logout, only local storage is cleared; Firestore data remains intact
 
 ---
 
+## 🔥 Firebase Integration
+
+### Authentication
+- **Email/Password Authentication**: Secure user authentication via Firebase Auth
+- **Session Management**: Automatic session persistence across app restarts
+- **Secure Storage**: User credentials and profile data stored securely using `flutter_secure_storage`
+
+### Firestore Database
+- **User-Scoped Data**: All data is stored under `users/{uid}/...` path structure
+- **Real-Time Updates**: Stream-based data fetching for real-time UI updates
+- **Security Rules**: Enforced at database level to prevent cross-user data access
+- **Data Persistence**: Data remains in Firestore after logout (intentional for data retention)
+
+### Data Architecture
+- **Customers**: `users/{uid}/customers/{customerId}`
+- **Orders**: `users/{uid}/orders/{orderId}`
+- **Measurements**: `users/{uid}/measurements/{measurementId}`
+- **Profile**: `users/{uid}` (document, not subcollection)
+
+### Security
+- **Firestore Rules**: Enforce user isolation - users can only access their own data
+- **Authentication Required**: All Firestore operations require authenticated user
+- **UID-Based Access**: All queries use `FirebaseAuth.instance.currentUser.uid`
+
+For detailed information, see:
+- `FIRESTORE_DATA_ISOLATION.md`: Complete data isolation architecture
+- `FIREBASE_AUTH_IMPLEMENTATION.md`: Authentication implementation details
+- `firestore.rules`: Security rules configuration
+
 ## 🎨 Recent Improvements
 
-### Multi-Item Order System & Receipt Enhancements (Latest)
+### UI/UX Redesign & Gradient System (Latest Update)
+
+#### AppBar & Navigation
+- **Gradient AppBar**: All AppBars now feature a prominent gradient background using primary (Indigo) to secondary (Purple) colors
+- **Bottom Navigation Bar**: Updated to match AppBar gradient for consistent design language
+- **Logout Functionality**: 
+  - Logout button added to AppBar in Profile and Settings screens
+  - Positioned in top-right corner for easy access
+  - Maintains consistent gradient styling
+
+#### Button System Overhaul
+- **Unified Gradient Design**: All buttons (primary and secondary) now use the same gradient as the AppBar (Primary → Secondary)
+- **Fixed Dimensions**: All buttons standardized to 382px width × 48px height (responsive on smaller screens)
+- **Text Display Fixes**:
+  - Resolved button text overflow issues
+  - Text now displays fully without cut-off
+  - Proper text wrapping and centering
+  - Removed ellipsis constraints for better readability
+- **Consistent Styling**: All buttons across the app (login, signup, edit order, delete order, etc.) now have uniform appearance
+
+#### Profile & Settings Screens
+- **Profile Screen Restructure**:
+  - Header section remains static at top
+  - Only details section scrolls (wrapped in Expanded + SingleChildScrollView)
+  - Edit Profile button remains static at bottom
+  - Improved layout for better UX
+- **Settings Screen**: Logout button moved to AppBar for consistency
+
+#### Measurement Display
+- **Card-Based Design**: "View [OrderType] Measurements" changed from button to card
+- **Enhanced Card Layout**: 
+  - Measurement icon on left
+  - Arrow indicator on right
+  - Better visual hierarchy
+  - Improved tap target
+
+#### Receipt Screen
+- **Clean Button Layout**: Removed white background container behind Download and Share buttons
+- **Gradient Buttons**: Buttons now display directly on app background with gradient styling
+- **Improved Visual Flow**: Cleaner, more modern appearance
+
+#### Design System Updates
+- **Card Colors**: Updated CustomCard to use modern white surface with subtle borders
+- **Background Effects**: Applied consistent gradient background effects across all screens
+- **Color Consistency**: Unified color palette throughout the app
+
+### Multi-Item Order System & Receipt Enhancements
 
 - **Multiple Items per Order**: 
   - Orders can now contain multiple items (e.g., Kurta + Pant + Shirt)

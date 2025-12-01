@@ -3,22 +3,66 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
-import '../../../core/routes/app_routes.dart';
+import '../../../core/middleware/auth_middleware.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/services/location_service.dart';
+import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/aurora_background.dart';
 import '../../../shared/widgets/custom_card.dart';
 import '../controllers/splash_controller.dart';
 
-class SplashScreen extends ConsumerWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen<SplashState>(splashControllerProvider, (previous, next) {
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _hasRequestedPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Request location permission after the screen is visible
+    // Add a small delay to ensure the UI is fully ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _requestLocationPermission();
+        }
+      });
+    });
+  }
+
+  Future<void> _requestLocationPermission() async {
+    if (_hasRequestedPermission) return;
+    _hasRequestedPermission = true;
+
+    try {
+      // Request location permission and get country code
+      // This will show the system permission dialog if needed
+      final countryCode = await LocationService.instance.getCountryCode();
+      if (countryCode != null && mounted) {
+        await SecureStorageService.instance.setCountryCode(countryCode);
+      }
+    } catch (e) {
+      // Silently handle errors - app will work without location
+      print('Location service error: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<SplashState>(splashControllerProvider, (previous, next) async {
       if (next.isReady && previous?.isReady != true) {
-        context.go(AppRoutes.onboarding);
+        // Use middleware to determine initial route
+        final initialRoute = await AuthMiddleware.getInitialRoute(ref);
+        if (context.mounted) {
+          context.go(initialRoute);
+        }
       }
     });
     ref.watch(splashControllerProvider);

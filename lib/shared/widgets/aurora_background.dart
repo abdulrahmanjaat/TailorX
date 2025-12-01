@@ -30,15 +30,15 @@ class AuroraBackground extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Stack(children: [..._buildBlurBlobs(), child]),
+      child: Stack(children: [..._buildBlobBlobs(), child]),
     );
   }
 
-  List<Widget> _buildBlurBlobs() {
+  List<Widget> _buildBlobBlobs() {
     final blobColors = [
-      AppColors.primary.withValues(alpha: 0.35),
-      AppColors.secondary.withValues(alpha: 0.35),
-      AppColors.primary.withValues(alpha: 0.25),
+      AppColors.primary.withValues(alpha: 0.08),
+      AppColors.secondary.withValues(alpha: 0.08),
+      AppColors.primary.withValues(alpha: 0.05),
     ];
 
     final alignments = [

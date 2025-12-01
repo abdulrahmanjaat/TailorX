@@ -28,6 +28,9 @@ class EmailService {
     required double remainingAmount,
     required DateTime deliveryDate,
     String? notes,
+    String? shopName,
+    String? tailorName,
+    String? phone,
   }) async {
     try {
       // Build email body text
@@ -37,14 +40,17 @@ class EmailService {
           })
           .join('\n');
 
+      final shopNameText = shopName?.isNotEmpty == true ? shopName! : 'TailorX';
+      final tailorNameText = tailorName?.isNotEmpty == true
+          ? 'Tailor: $tailorName'
+          : '';
+      final phoneText = phone?.isNotEmpty == true ? 'Phone: $phone' : '';
+
       final emailBody =
           '''
-TailorX - Order Receipt
+$shopNameText - Order Receipt
 
-Premium Tailor Shop
-Tailor: Muhammad Ali
-Phone: +92 300 1234567
-
+${tailorNameText.isNotEmpty ? '$tailorNameText\n' : ''}${phoneText.isNotEmpty ? '$phoneText\n' : ''}
 Order Details:
 Customer: $customerName
 Order ID: $orderId

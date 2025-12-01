@@ -76,4 +76,23 @@ class Validators {
 
     return null;
   }
+
+  /// Password validation - must be at least 8 characters
+  static String? password(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    return null;
+  }
+
+  /// Email validation for auth (required field)
+  static String? emailRequired(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Email is required';
+    }
+    return email(value);
+  }
 }

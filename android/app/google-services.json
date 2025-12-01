@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "61258568836",
+    "project_id": "tailorx-jaat001",
+    "storage_bucket": "tailorx-jaat001.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:61258568836:android:bde014d18d558560ee1ed1",
+        "android_client_info": {
+          "package_name": "com.abdulrahman.tailorx_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdyJT3lyS9lNwJNUZAj1I-mT5NKTVGjAY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

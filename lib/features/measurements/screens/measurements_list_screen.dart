@@ -33,9 +33,20 @@ class _MeasurementsListScreenState
 
   @override
   Widget build(BuildContext context) {
-    final measurements = ref.watch(measurementsProvider);
-    final filtered = _filtered(measurements);
+    final measurementsAsync = ref.watch(measurementsProvider);
 
+    return measurementsAsync.when(
+      data: (measurements) {
+        final filtered = _filtered(measurements);
+        return _buildContent(context, filtered);
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) =>
+          Center(child: Text('Error: $error', style: AppTextStyles.bodyLarge)),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<MeasurementModel> filtered) {
     return AppScaffold(
       title: 'Measurements',
       padding: const EdgeInsets.all(AppSizes.lg),
@@ -109,13 +120,17 @@ class _MeasurementsListScreenState
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ref.read(measurementsProvider.notifier).deleteMeasurement(id);
-              SnackbarService.showSuccess(
-                context,
-                message: 'Measurement deleted',
-              );
+              await ref
+                  .read(measurementsProvider.notifier)
+                  .deleteMeasurement(id);
+              if (context.mounted) {
+                SnackbarService.showSuccess(
+                  context,
+                  message: 'Measurement deleted',
+                );
+              }
             },
             child: const Text(
               'Delete',
