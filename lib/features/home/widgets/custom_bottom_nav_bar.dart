@@ -68,7 +68,7 @@ class _TailorBottomNavState extends State<TailorBottomNav> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF0E3A39), Color(0xFF1D5E5D)],
+                    colors: [AppColors.primary, AppColors.secondary],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -109,7 +109,7 @@ class _TailorBottomNavState extends State<TailorBottomNav> {
             ),
           ),
           Positioned(
-            top: 25,
+            top: 20,
             child: GestureDetector(
               onTap: () => context.push(AppRoutes.addCustomer),
               child: Container(

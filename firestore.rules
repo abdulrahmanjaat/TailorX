@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    // CRITICAL: This ensures users can ONLY access data under their own UID
+    // No user can read or write data belonging to another user
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users can only read/write their own user document
+    // Path: users/{userId}
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Customers subcollection - users can only access their own customers
+      // Path: users/{userId}/customers/{customerId}
+      // IMPORTANT: All customer data is isolated per user. No cross-user access.
+      match /customers/{customerId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Orders subcollection - users can only access their own orders
+      // Path: users/{userId}/orders/{orderId}
+      // IMPORTANT: All order data is isolated per user. No cross-user access.
+      match /orders/{orderId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Measurements subcollection - users can only access their own measurements
+      // Path: users/{userId}/measurements/{measurementId}
+      // IMPORTANT: All measurement data is isolated per user. No cross-user access.
+      match /measurements/{measurementId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // NOTE: All data must be under users/{userId}/... path structure.
+    // Any attempt to save at root level (e.g., /customers, /orders) will be denied
+    // because there are no matching rules for those paths. Firestore denies by default.
+  }
+}
+

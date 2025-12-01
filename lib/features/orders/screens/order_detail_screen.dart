@@ -23,7 +23,8 @@ class OrderDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orders = ref.watch(ordersProvider);
+    final ordersAsync = ref.watch(ordersProvider);
+    final orders = ordersAsync.value ?? [];
     final order = orders.where((item) => item.id == orderId).firstOrNull;
 
     if (order == null) {
@@ -215,27 +216,53 @@ class OrderDetailScreen extends ConsumerWidget {
                   .map(
                     (item) => Padding(
                       padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                      child: AppButton(
-                        label: 'View ${item.orderType} Measurements',
-                        onPressed: () => context.push(
+                      child: CustomCard(
+                        onTap: () => context.push(
                           '${AppRoutes.measurementsDetail}/${item.measurementId}',
                         ),
-                        type: AppButtonType.secondary,
+                        padding: const EdgeInsets.all(AppSizes.lg),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.straighten,
+                              color: AppColors.primary,
+                              size: AppSizes.iconMd,
+                            ),
+                            const SizedBox(width: AppSizes.md),
+                            Expanded(
+                              child: Text(
+                                'View ${item.orderType} Measurements',
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 16,
+                              color: AppColors.dark.withValues(alpha: 0.5),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
             const SizedBox(height: AppSizes.md),
-            AppButton(
-              label: 'Edit Order',
-              onPressed: () =>
-                  context.push('${AppRoutes.editOrder}/${orderId}'),
-              type: AppButtonType.secondary,
+            Center(
+              child: AppButton(
+                label: 'Edit Order',
+                onPressed: () =>
+                    context.push('${AppRoutes.editOrder}/${orderId}'),
+                type: AppButtonType.secondary,
+              ),
             ),
             const SizedBox(height: AppSizes.md),
-            AppButton(
-              label: 'Delete Order',
-              onPressed: () => _confirmDelete(context, ref, order.id),
-              type: AppButtonType.secondary,
+            Center(
+              child: AppButton(
+                label: 'Delete Order',
+                onPressed: () => _confirmDelete(context, ref, order.id),
+                type: AppButtonType.secondary,
+              ),
             ),
             const SizedBox(height: AppSizes.xl),
           ],
@@ -258,24 +285,20 @@ class OrderDetailScreen extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
 
               // Delete the order first
-              ref.read(ordersProvider.notifier).deleteOrder(id);
+              await ref.read(ordersProvider.notifier).deleteOrder(id);
 
-              // Show success message
-              SnackbarService.showSuccess(
-                context,
-                message: 'Order deleted successfully',
-              );
-
-              // Navigate back after a small delay to ensure state updates
-              Future.delayed(const Duration(milliseconds: 50), () {
-                if (context.mounted) {
-                  context.pop();
-                }
-              });
+              // Show success message and navigate back
+              if (context.mounted) {
+                SnackbarService.showSuccess(
+                  context,
+                  message: 'Order deleted successfully',
+                );
+                context.pop();
+              }
             },
             child: const Text(
               'Delete',

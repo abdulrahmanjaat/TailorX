@@ -6,6 +6,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/aurora_background.dart';
 import '../../../shared/widgets/custom_card.dart';
@@ -21,11 +22,31 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _pageController = PageController(initialPage: 0);
+
+    // Reset onboarding state immediately when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final controller = ref.read(onboardingControllerProvider.notifier);
+
+        // Always reset to ensure clean state after logout/delete
+        controller.reset();
+
+        // Ensure PageController is at first page
+        if (_pageController.hasClients && _pageController.page != 0) {
+          _pageController.jumpToPage(0);
+        }
+
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    });
   }
 
   @override
@@ -40,14 +61,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final state = ref.watch(onboardingControllerProvider);
     final controller = ref.read(onboardingControllerProvider.notifier);
 
-    ref.listen<OnboardingState>(onboardingControllerProvider, (previous, next) {
+    ref.listen<OnboardingState>(onboardingControllerProvider, (
+      previous,
+      next,
+    ) async {
       if (next.completed && previous?.completed != true) {
+        // Mark onboarding as seen
+        await SecureStorageService.instance.setHasSeenOnboarding(true);
         if (context.mounted) {
           context.go(AppRoutes.login);
         }
         return;
       }
-      if (previous?.index != next.index &&
+      // Only animate if initialized and PageController is ready
+      if (_isInitialized &&
+          _pageController.hasClients &&
+          previous?.index != next.index &&
           next.index < pages.length &&
           next.index >= 0) {
         _pageController.animateToPage(
@@ -60,6 +89,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     return AppScaffold(
       padding: EdgeInsets.zero,
+      showBackButton: false,
       body: AuroraBackground(
         child: SafeArea(
           child: Column(
@@ -82,11 +112,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ],
                     ),
                     const Spacer(),
-                    AppButton(
-                      label: 'Skip',
+                    TextButton(
                       onPressed: controller.skip,
-                      type: AppButtonType.secondary,
-                      isSmall: true,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.md,
+                          vertical: AppSizes.sm,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Skip',
+                        style: AppTextStyles.bodyRegular.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -94,7 +136,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Expanded(
                 child: PageView.builder(
                   controller: _pageController,
-                  onPageChanged: controller.updateIndex,
+                  onPageChanged: (index) {
+                    // Only update index if initialized to prevent conflicts
+                    if (_isInitialized) {
+                      controller.updateIndex(index);
+                    }
+                  },
                   itemCount: pages.length,
                   itemBuilder: (context, index) {
                     final page = pages[index];
@@ -143,47 +190,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ),
                     const SizedBox(height: AppSizes.lg),
-                    Builder(
-                      builder: (context) {
-                        final isCompact =
-                            MediaQuery.of(context).size.width < 420;
-                        final continueButton = AppButton(
-                          label: state.index == pages.length - 1
-                              ? 'Launch workspace'
-                              : 'Continue',
-                          onPressed: controller.next,
-                          icon: Icons.arrow_forward,
-                        );
-                        final backButton = state.index > 0
-                            ? AppButton(
-                                label: 'Back',
-                                onPressed: () => _pageController.previousPage(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOut,
-                                ),
-                                type: AppButtonType.secondary,
-                                isSmall: true,
-                              )
-                            : null;
-                        if (isCompact) {
-                          return Column(
-                            children: [
-                              if (backButton != null) backButton,
-                              if (backButton != null)
-                                const SizedBox(height: AppSizes.md),
-                              continueButton,
-                            ],
-                          );
-                        }
-                        return Row(
-                          children: [
-                            if (backButton != null) Expanded(child: backButton),
-                            if (backButton != null)
-                              const SizedBox(width: AppSizes.md),
-                            Expanded(child: continueButton),
-                          ],
-                        );
-                      },
+                    AppButton(
+                      label: state.index == pages.length - 1
+                          ? 'Launch workspace'
+                          : 'Continue',
+                      onPressed: controller.next,
+                      icon: Icons.arrow_forward,
                     ),
                   ],
                 ),

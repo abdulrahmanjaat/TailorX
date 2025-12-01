@@ -24,22 +24,18 @@ class AppButton extends StatelessWidget {
   final bool isLoading;
   final IconData? icon;
 
-  Color get _backgroundColor {
-    switch (type) {
-      case AppButtonType.secondary:
-        return AppColors.surface;
-      case AppButtonType.primary:
-        return AppColors.primary;
-    }
+  Gradient get _backgroundGradient {
+    // All buttons use the same gradient as app bar
+    return LinearGradient(
+      colors: [AppColors.primary, AppColors.secondary],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
   }
 
   Color get _foregroundColor {
-    switch (type) {
-      case AppButtonType.secondary:
-        return AppColors.dark;
-      case AppButtonType.primary:
-        return AppColors.background;
-    }
+    // All buttons use white text on gradient background
+    return AppColors.background;
   }
 
   @override
@@ -47,6 +43,8 @@ class AppButton extends StatelessWidget {
     final effectiveLabel = Text(
       label,
       style: AppTextStyles.button(isSmall).copyWith(color: _foregroundColor),
+      textAlign: TextAlign.center,
+      softWrap: true,
     );
 
     final child = isLoading
@@ -59,33 +57,46 @@ class AppButton extends StatelessWidget {
             ),
           )
         : Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
                 Icon(icon, size: AppSizes.iconSm, color: _foregroundColor),
                 const SizedBox(width: AppSizes.sm),
               ],
-              effectiveLabel,
+              Flexible(child: effectiveLabel),
             ],
           );
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: isSmall ? 44 : 52),
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: _backgroundColor,
-          foregroundColor: _foregroundColor,
-          padding: EdgeInsets.symmetric(
-            horizontal: isSmall ? AppSizes.md : AppSizes.lg,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final buttonWidth = constraints.maxWidth > 382
+            ? 382.0
+            : constraints.maxWidth;
+        return SizedBox(
+          width: buttonWidth,
+          height: 48,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: _backgroundGradient,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: isLoading ? null : onPressed,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmall ? AppSizes.md : AppSizes.lg,
+                  ),
+                  child: Center(child: child),
+                ),
+              ),
+            ),
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.sm),
-          ),
-          elevation: 0,
-        ),
-        onPressed: isLoading ? null : onPressed,
-        child: child,
-      ),
+        );
+      },
     );
   }
 }

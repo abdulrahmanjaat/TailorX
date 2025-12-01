@@ -32,9 +32,20 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final orders = ref.watch(ordersProvider);
-    final filtered = orders.where(_matchesFilters).toList();
+    final ordersAsync = ref.watch(ordersProvider);
 
+    return ordersAsync.when(
+      data: (orders) {
+        final filtered = orders.where(_matchesFilters).toList();
+        return _buildContent(context, filtered);
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) =>
+          Center(child: Text('Error: $error', style: AppTextStyles.bodyLarge)),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<OrderModel> filtered) {
     return AppScaffold(
       title: 'Orders',
       padding: const EdgeInsets.all(AppSizes.lg),

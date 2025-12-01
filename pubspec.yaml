@@ -1,4 +1,4 @@
-name: tailorx_app
+name: tailorx
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -40,6 +40,25 @@ dependencies:
   image_picker: ^1.0.7
   share_plus: ^10.1.2
   path_provider: ^2.1.5
+  
+  # Firebase
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  
+  # Secure Storage
+  flutter_secure_storage: ^9.2.2
+  
+  # International Phone Field
+  intl_phone_field: ^3.2.0
+  
+  # Location Services
+  permission_handler: ^11.3.1
+  geolocator: ^13.0.1
+  geocoding: ^3.0.0
+  
+  # Date Formatting
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:

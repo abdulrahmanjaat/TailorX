@@ -25,12 +25,19 @@ class CustomerDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final customer = _customer(ref);
-    final measurements = ref
-        .watch(measurementsProvider)
+    if (customer == null) {
+      return AppScaffold(
+        title: 'Customer Details',
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final measurementsAsync = ref.watch(measurementsProvider);
+    final measurements = (measurementsAsync.value ?? [])
         .where((m) => m.customerId == customer.id)
         .toList();
-    final orders = ref
-        .watch(ordersProvider)
+    final ordersAsync = ref.watch(ordersProvider);
+    final orders = (ordersAsync.value ?? [])
         .where((o) => o.customerId == customer.id)
         .toList();
 
@@ -117,11 +124,18 @@ class CustomerDetailScreen extends ConsumerWidget {
     );
   }
 
-  CustomerModel _customer(WidgetRef ref) {
-    final customers = ref.watch(customersProvider);
-    return customers.firstWhere(
-      (customer) => customer.id == customerId,
-      orElse: () => throw Exception('Customer not found'),
+  CustomerModel? _customer(WidgetRef ref) {
+    final customersAsync = ref.watch(customersProvider);
+    return customersAsync.when(
+      data: (customers) {
+        try {
+          return customers.firstWhere((customer) => customer.id == customerId);
+        } catch (_) {
+          return null;
+        }
+      },
+      loading: () => null,
+      error: (_, __) => null,
     );
   }
 }

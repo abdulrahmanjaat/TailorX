@@ -31,9 +31,20 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customers = ref.watch(customersProvider);
-    final filtered = _filtered(customers);
+    final customersAsync = ref.watch(customersProvider);
 
+    return customersAsync.when(
+      data: (customers) {
+        final filtered = _filtered(customers);
+        return _buildContent(context, filtered);
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) =>
+          Center(child: Text('Error: $error', style: AppTextStyles.bodyLarge)),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<CustomerModel> filtered) {
     return AppScaffold(
       title: 'Customers',
       padding: const EdgeInsets.all(AppSizes.lg),

@@ -16,6 +16,7 @@ import '../../../shared/services/email_service.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../customers/controllers/customers_controller.dart';
+import '../../profile/controllers/profile_controller.dart';
 import '../controllers/orders_controller.dart';
 import '../models/order_model.dart';
 
@@ -44,12 +45,14 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
   Future<void> _sendReceiptEmail() async {
     if (_emailSent) return;
 
-    final orders = ref.read(ordersProvider);
+    final ordersAsync = ref.read(ordersProvider);
+    final orders = ordersAsync.value ?? [];
     final order = orders.where((item) => item.id == widget.orderId).firstOrNull;
 
     if (order == null) return;
 
-    final customers = ref.read(customersProvider);
+    final customersAsync = ref.read(customersProvider);
+    final customers = customersAsync.value ?? [];
     final customer = customers
         .where((c) => c.id == order.customerId)
         .firstOrNull;
@@ -67,6 +70,10 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
       };
     }).toList();
 
+    // Get profile data for email
+    final profileAsync = ref.read(profileProvider);
+    final profile = profileAsync.value;
+
     // Send email
     final emailSent = await EmailService.sendReceiptEmail(
       recipientEmail: customerEmail,
@@ -78,6 +85,9 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
       remainingAmount: order.remainingAmount,
       deliveryDate: order.deliveryDate,
       notes: order.notes,
+      shopName: profile?.shopName,
+      tailorName: profile?.name,
+      phone: profile?.phone,
     );
 
     if (mounted) {
@@ -102,13 +112,19 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final orders = ref.watch(ordersProvider);
+    final ordersAsync = ref.watch(ordersProvider);
+    final orders = ordersAsync.value ?? [];
     final order = orders.where((item) => item.id == widget.orderId).firstOrNull;
+
+    // Get profile data for receipt
+    final profileAsync = ref.watch(profileProvider);
+    final profile = profileAsync.value;
 
     // Get customer email for future email sending
     String? customerEmail;
     if (order != null) {
-      final customers = ref.watch(customersProvider);
+      final customersAsync = ref.watch(customersProvider);
+      final customers = customersAsync.value ?? [];
       final customer = customers
           .where((c) => c.id == order.customerId)
           .firstOrNull;
@@ -174,25 +190,30 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSizes.md),
-                      // Shop Name (highlighted/bold)
+                      // Shop Name (highlighted/bold) - from profile
                       Text(
-                        'Premium Tailor Shop',
+                        profile?.shopName.isNotEmpty == true
+                            ? profile!.shopName
+                            : 'TailorX',
                         style: AppTextStyles.headlineMedium.copyWith(
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
                       ),
                       const SizedBox(height: AppSizes.sm),
-                      // Tailor Name and Phone
-                      Text(
-                        'Tailor: Muhammad Ali',
-                        style: AppTextStyles.bodyRegular,
-                      ),
-                      const SizedBox(height: AppSizes.xs),
-                      Text(
-                        'Phone: +92 300 1234567',
-                        style: AppTextStyles.bodyRegular,
-                      ),
+                      // Tailor Name and Phone - from profile
+                      if (profile != null && profile.name.isNotEmpty)
+                        Text(
+                          'Tailor: ${profile.name}',
+                          style: AppTextStyles.bodyRegular,
+                        ),
+                      if (profile != null && profile.name.isNotEmpty)
+                        const SizedBox(height: AppSizes.xs),
+                      if (profile != null && profile.phone.isNotEmpty)
+                        Text(
+                          'Phone: ${profile.phone}',
+                          style: AppTextStyles.bodyRegular,
+                        ),
                       const SizedBox(height: AppSizes.lg),
                       const Divider(),
                       const SizedBox(height: AppSizes.md),
@@ -363,18 +384,8 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
               ),
             ),
           ),
-          Container(
+          Padding(
             padding: const EdgeInsets.all(AppSizes.lg),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
             child: Row(
               children: [
                 Expanded(
@@ -435,13 +446,28 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
     OrderModel order,
     String? customerEmail,
   ) async {
+    // Get profile data for share message
+    final profileAsync = ref.read(profileProvider);
+    final profile = profileAsync.value;
+    final shopName = (profile != null && profile.shopName.isNotEmpty)
+        ? profile.shopName
+        : 'TailorX';
+    final tailorName = (profile != null && profile.name.isNotEmpty)
+        ? profile.name
+        : '';
+    final phone = (profile != null && profile.phone.isNotEmpty)
+        ? profile.phone
+        : '';
+
+    final orderTypes = order.items.map((item) => item.orderType).join(', ');
+
     final message =
         '''
-*TailorX Order Receipt*
-
+*$shopName Order Receipt*
+${tailorName.isNotEmpty ? 'Tailor: $tailorName\n' : ''}${phone.isNotEmpty ? 'Phone: $phone\n' : ''}
 Customer: ${order.customerName}
 Order ID: ${order.id}
-Order Type: ${order.orderType}
+Order Type: $orderTypes
 Gender: ${order.gender}
 
 Delivery Date: ${order.deliveryDate.day}/${order.deliveryDate.month}/${order.deliveryDate.year}

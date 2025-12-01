@@ -8,7 +8,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:tailorx_app/main.dart';
+import 'package:tailorx/main.dart';
 
 void main() {
   testWidgets('renders TailorX splash tagline', (tester) async {

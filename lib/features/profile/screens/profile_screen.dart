@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -12,15 +13,18 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/custom_card.dart';
+import '../../auth/services/auth_service.dart';
+import '../controllers/profile_controller.dart';
+import '../models/profile_model.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _imagePicker = ImagePicker();
   File? _profileImage;
 
@@ -47,32 +51,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return AppScaffold(
       title: 'Profile',
       padding: const EdgeInsets.all(AppSizes.lg),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ProfileHeader(
-              profileImage: _profileImage,
-              onCameraTap: _pickImage,
-            ),
-            const SizedBox(height: AppSizes.lg),
-            const _ProfileDetails(),
-            const SizedBox(height: AppSizes.lg),
-            AppButton(
-              label: 'Edit Profile',
-              onPressed: () => context.push(AppRoutes.settings),
-            ),
-            const SizedBox(height: AppSizes.md),
-          ],
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.logout),
+          tooltip: 'Logout',
+          onPressed: () async {
+            try {
+              final authRepository = ref.read(authRepositoryProvider);
+              await authRepository.signOut();
+              if (mounted) {
+                SnackbarService.showSuccess(
+                  context,
+                  message: 'Logged out successfully',
+                );
+                context.go(AppRoutes.onboarding);
+              }
+            } catch (e) {
+              if (mounted) {
+                SnackbarService.showError(
+                  context,
+                  message: 'Error logging out: ${e.toString()}',
+                );
+              }
+            }
+          },
         ),
-      ),
+      ],
+      body: ref
+          .watch(profileProvider)
+          .when(
+            data: (profile) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ProfileHeader(
+                  profile: profile,
+                  profileImage: _profileImage,
+                  onCameraTap: _pickImage,
+                ),
+                const SizedBox(height: AppSizes.lg),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: _ProfileDetails(profile: profile),
+                  ),
+                ),
+                const SizedBox(height: AppSizes.lg),
+                Center(
+                  child: AppButton(
+                    label: 'Edit Profile',
+                    onPressed: () => context.push(AppRoutes.settings),
+                  ),
+                ),
+                const SizedBox(height: AppSizes.md),
+              ],
+            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Error loading profile: $error'),
+                  const SizedBox(height: AppSizes.md),
+                  AppButton(
+                    label: 'Retry',
+                    onPressed: () =>
+                        ref.read(profileProvider.notifier).refreshProfile(),
+                  ),
+                ],
+              ),
+            ),
+          ),
     );
   }
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.profileImage, required this.onCameraTap});
+  const _ProfileHeader({
+    required this.profile,
+    required this.profileImage,
+    required this.onCameraTap,
+  });
 
+  final ProfileModel profile;
   final File? profileImage;
   final VoidCallback onCameraTap;
 
@@ -117,9 +176,15 @@ class _ProfileHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSizes.md),
-          Text('Ahsan Qureshi', style: AppTextStyles.titleLarge),
+          Text(
+            profile.name.isNotEmpty ? profile.name : 'User',
+            style: AppTextStyles.titleLarge,
+          ),
           const SizedBox(height: AppSizes.xs),
-          Text('TailorX Atelier · Karachi', style: AppTextStyles.caption),
+          Text(
+            profile.shopName.isNotEmpty ? '${profile.shopName}' : 'TailorX',
+            style: AppTextStyles.caption,
+          ),
         ],
       ),
     );
@@ -127,19 +192,22 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _ProfileDetails extends StatelessWidget {
-  const _ProfileDetails();
+  const _ProfileDetails({required this.profile});
 
-  final info = const [
-    ('Owner Name', 'Ahsan Qureshi'),
-    ('Studio Name', 'TailorX Atelier'),
-    ('Email', 'ahsan@tailorxstudio.com'),
-    ('Phone', '+92 300 1234567'),
-    ('Location', 'Karachi, Pakistan'),
-    ('Specialty', 'Luxury couture · Bridal'),
-  ];
+  final ProfileModel profile;
 
   @override
   Widget build(BuildContext context) {
+    final info = [
+      ('Owner Name', profile.name.isNotEmpty ? profile.name : 'Not set'),
+      (
+        'Studio Name',
+        profile.shopName.isNotEmpty ? profile.shopName : 'Not set',
+      ),
+      ('Email', profile.email.isNotEmpty ? profile.email : 'Not set'),
+      ('Phone', profile.phone.isNotEmpty ? profile.phone : 'Not set'),
+    ];
+
     return CustomCard(
       padding: const EdgeInsets.all(AppSizes.lg),
       child: Column(

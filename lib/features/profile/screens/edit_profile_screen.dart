@@ -89,6 +89,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Get current profile to preserve email and uid
+      final currentProfileAsync = ref.read(profileProvider);
+      final currentProfile = currentProfileAsync.value;
+
+      if (currentProfile == null) {
+        throw Exception('Profile not loaded. Please try again.');
+      }
+
       // Get full phone number with country code from the phone field
       final phone =
           _phoneFieldKey.currentState?.getFullPhoneNumber() ??
@@ -98,6 +106,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         name: _nameController.text.trim(),
         shopName: _shopNameController.text.trim(),
         phone: phone,
+        email: currentProfile.email,
+        uid: currentProfile.uid,
         profileImagePath: _profileImage?.path,
       );
 
@@ -123,86 +133,115 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final profile = ref.watch(profileProvider);
-    _loadProfileData(profile);
+    final profileAsync = ref.watch(profileProvider);
 
-    return AppScaffold(
-      title: 'Edit Profile',
-      padding: const EdgeInsets.all(AppSizes.lg),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: AppColors.primary.withValues(
-                        alpha: 0.12,
-                      ),
-                      backgroundImage: _profileImage != null
-                          ? FileImage(_profileImage!)
-                          : null,
-                      child: _profileImage == null
-                          ? const Icon(
-                              Icons.person,
-                              size: 56,
-                              color: AppColors.primary,
-                            )
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundColor: AppColors.primary,
-                          child: const Icon(
-                            Icons.camera_alt,
-                            color: AppColors.background,
-                            size: 18,
+    return profileAsync.when(
+      data: (profile) {
+        _loadProfileData(profile);
+        return AppScaffold(
+          title: 'Edit Profile',
+          padding: const EdgeInsets.all(AppSizes.lg),
+          body: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 60,
+                          backgroundColor: AppColors.primary.withValues(
+                            alpha: 0.12,
+                          ),
+                          backgroundImage: _profileImage != null
+                              ? FileImage(_profileImage!)
+                              : null,
+                          child: _profileImage == null
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 56,
+                                  color: AppColors.primary,
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: _pickImage,
+                            child: CircleAvatar(
+                              radius: 20,
+                              backgroundColor: AppColors.primary,
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: AppColors.background,
+                                size: 18,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: AppSizes.xl),
+                  AppInputField(
+                    controller: _nameController,
+                    labelText: 'Owner Name',
+                    hintText: 'Enter your name',
+                    prefix: const Icon(Icons.person_outline),
+                    validator: (value) =>
+                        value?.isEmpty ?? true ? 'Name is required' : null,
+                  ),
+                  const SizedBox(height: AppSizes.md),
+                  AppInputField(
+                    controller: _shopNameController,
+                    labelText: 'Shop/Studio Name',
+                    hintText: 'Enter shop name',
+                    prefix: const Icon(Icons.store_outlined),
+                    validator: (value) =>
+                        value?.isEmpty ?? true ? 'Shop name is required' : null,
+                  ),
+                  const SizedBox(height: AppSizes.md),
+                  InternationalPhoneField(
+                    key: _phoneFieldKey,
+                    controller: _phoneController,
+                    labelText: 'Phone Number',
+                    hintText: '1234567890',
+                    validator: (value) => Validators.phone(value),
+                  ),
+                  const SizedBox(height: AppSizes.xl),
+                  Center(
+                    child: AppButton(
+                      label: 'Save Changes',
+                      onPressed: _isLoading ? null : _saveProfile,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSizes.xl),
-              AppInputField(
-                controller: _nameController,
-                labelText: 'Owner Name',
-                hintText: 'Enter your name',
-                prefix: const Icon(Icons.person_outline),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Name is required' : null,
-              ),
+            ),
+          ),
+        );
+      },
+      loading: () => AppScaffold(
+        title: 'Edit Profile',
+        padding: const EdgeInsets.all(AppSizes.lg),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stack) => AppScaffold(
+        title: 'Edit Profile',
+        padding: const EdgeInsets.all(AppSizes.lg),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Error loading profile: $error'),
               const SizedBox(height: AppSizes.md),
-              AppInputField(
-                controller: _shopNameController,
-                labelText: 'Shop/Studio Name',
-                hintText: 'Enter shop name',
-                prefix: const Icon(Icons.store_outlined),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Shop name is required' : null,
-              ),
-              const SizedBox(height: AppSizes.md),
-              InternationalPhoneField(
-                key: _phoneFieldKey,
-                controller: _phoneController,
-                labelText: 'Phone Number',
-                hintText: '1234567890',
-                validator: (value) => Validators.phone(value),
-              ),
-              const SizedBox(height: AppSizes.xl),
               AppButton(
-                label: 'Save Changes',
-                onPressed: _isLoading ? null : _saveProfile,
+                label: 'Retry',
+                onPressed: () =>
+                    ref.read(profileProvider.notifier).refreshProfile(),
               ),
             ],
           ),

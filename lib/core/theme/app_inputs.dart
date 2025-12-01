@@ -19,6 +19,7 @@ class AppInputField extends StatelessWidget {
     this.textInputAction,
     this.enabled = true,
     this.maxLines = 1,
+    this.decoration,
   });
 
   final TextEditingController? controller;
@@ -33,6 +34,7 @@ class AppInputField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final bool enabled;
   final int maxLines;
+  final InputDecoration? decoration;
 
   @override
   Widget build(BuildContext context) {
@@ -45,36 +47,54 @@ class AppInputField extends StatelessWidget {
       textInputAction: textInputAction,
       enabled: enabled,
       maxLines: maxLines,
-      style: AppTextStyles.input,
-      decoration: InputDecoration(
-        hintText: hintText,
-        labelText: labelText,
-        hintStyle: AppTextStyles.inputHint,
-        prefixIcon: prefix,
-        suffixIcon: suffix,
-        filled: true,
-        fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSizes.md,
-          vertical: AppSizes.sm,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.sm),
-          borderSide: const BorderSide(color: AppColors.surface),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.sm),
-          borderSide: const BorderSide(color: AppColors.surface),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.sm),
-          borderSide: const BorderSide(color: AppColors.primary),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.sm),
-          borderSide: const BorderSide(color: AppColors.error),
-        ),
+      style: AppTextStyles.input.copyWith(
+        color: AppColors.dark,
+        fontWeight: FontWeight.w500,
       ),
+      decoration:
+          decoration ??
+          InputDecoration(
+            hintText: hintText,
+            labelText: labelText,
+            hintStyle: AppTextStyles.inputHint.copyWith(
+              color: AppColors.dark.withValues(alpha: 0.6),
+            ),
+            labelStyle: TextStyle(
+              color: AppColors.dark,
+              fontWeight: FontWeight.w500,
+            ),
+            prefixIcon: prefix,
+            suffixIcon: suffix,
+            filled: true,
+            fillColor: AppColors.background,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.md,
+              vertical: AppSizes.md,
+            ),
+            constraints: const BoxConstraints(minHeight: 56),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.borderGray,
+                width: 1,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: AppColors.borderGray,
+                width: 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.error, width: 2),
+            ),
+          ),
     );
   }
 }

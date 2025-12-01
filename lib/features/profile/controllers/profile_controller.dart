@@ -1,48 +1,130 @@
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/services/secure_storage_service.dart';
 import '../models/profile_model.dart';
+import '../repositories/profile_firestore_repository.dart';
+import '../services/profile_service.dart';
 
-class ProfileController extends StateNotifier<ProfileModel> {
-  ProfileController() : super(ProfileModel.defaultProfile) {
+class ProfileController extends StateNotifier<AsyncValue<ProfileModel>> {
+  ProfileController(this._repository) : super(const AsyncValue.loading()) {
     _loadProfile();
   }
 
+  final ProfileFirestoreRepository _repository;
   static const String _storageKey = 'user_profile';
-  SecureStorageService? _storage;
-
-  Future<void> _initializeStorage() async {
-    _storage ??= await SecureStorageService.create();
-  }
+  final SecureStorageService _storage = SecureStorageService.instance;
 
   Future<void> _loadProfile() async {
     try {
-      await _initializeStorage();
-      final profileJson = _storage!.read(_storageKey);
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        state = const AsyncValue.error(
+          'User not authenticated',
+          StackTrace.empty,
+        );
+        return;
+      }
+
+      // First try to load from Firestore (primary source)
+      final profile = await _repository.getProfile();
+      if (profile != null) {
+        // Save to local storage for offline access
+        await _saveToLocalStorage(profile);
+        state = AsyncValue.data(profile);
+        return;
+      }
+
+      // Fallback to local storage if Firestore doesn't have profile
+      final profileJson = await _storage.read(_storageKey);
       if (profileJson != null) {
         final Map<String, dynamic> json = jsonDecode(profileJson);
-        state = ProfileModel.fromJson(json);
+        final localProfile = ProfileModel.fromJson(json);
+        state = AsyncValue.data(localProfile);
+        // Try to save to Firestore if it doesn't exist
+        try {
+          await _repository.saveProfile(localProfile);
+        } catch (_) {
+          // Ignore Firestore errors, use local data
+        }
+      } else {
+        // No profile found, create default from Firebase Auth data
+        final email = currentUser.email ?? '';
+        final defaultProfile = ProfileModel.defaultProfile(
+          email,
+          currentUser.uid,
+        );
+        // Try to get name and shopName from secure storage
+        final name = await _storage.getUserName() ?? '';
+        final shopName = await _storage.getShopName() ?? '';
+        final phone = await _storage.read('phone') ?? '';
+        final profileWithDefaults = defaultProfile.copyWith(
+          name: name,
+          shopName: shopName,
+          phone: phone,
+        );
+        state = AsyncValue.data(profileWithDefaults);
+        // Try to save to Firestore
+        try {
+          await _repository.saveProfile(profileWithDefaults);
+        } catch (_) {
+          // Ignore Firestore errors
+        }
       }
-    } catch (e) {
-      // If loading fails, use default profile
-      state = ProfileModel.defaultProfile;
+    } catch (e, stackTrace) {
+      // Try to load from local storage as fallback
+      try {
+        final profileJson = await _storage.read(_storageKey);
+        if (profileJson != null) {
+          final Map<String, dynamic> json = jsonDecode(profileJson);
+          state = AsyncValue.data(ProfileModel.fromJson(json));
+          return;
+        }
+      } catch (_) {
+        // Ignore local storage errors
+      }
+      state = AsyncValue.error(e, stackTrace);
+    }
+  }
+
+  Future<void> _saveToLocalStorage(ProfileModel profile) async {
+    try {
+      final profileJson = jsonEncode(profile.toJson());
+      await _storage.write(_storageKey, profileJson);
+      // Also save individual fields for backward compatibility
+      await _storage.setUserName(profile.name);
+      await _storage.setShopName(profile.shopName);
+      if (profile.phone.isNotEmpty) {
+        await _storage.write('phone', profile.phone);
+      }
+    } catch (_) {
+      // Ignore storage errors
     }
   }
 
   Future<void> updateProfile(ProfileModel profile) async {
     try {
-      await _initializeStorage();
-      final profileJson = jsonEncode(profile.toJson());
-      await _storage!.write(_storageKey, profileJson);
-      state = profile;
-    } catch (e) {
+      // Save to Firestore first (primary source)
+      await _repository.saveProfile(profile);
+      // Save to local storage for offline access
+      await _saveToLocalStorage(profile);
+      state = AsyncValue.data(profile);
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
       rethrow;
     }
   }
+
+  /// Refresh profile from Firestore
+  Future<void> refreshProfile() async {
+    state = const AsyncValue.loading();
+    await _loadProfile();
+  }
 }
 
-final profileProvider = StateNotifierProvider<ProfileController, ProfileModel>(
-  (ref) => ProfileController(),
-);
+final profileProvider =
+    StateNotifierProvider<ProfileController, AsyncValue<ProfileModel>>(
+      (ref) => ProfileController(ref.read(profileFirestoreRepositoryProvider)),
+    );

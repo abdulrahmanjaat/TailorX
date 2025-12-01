@@ -21,6 +21,13 @@ class MeasurementDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final measurement = _measurement(ref);
 
+    if (measurement == null) {
+      return AppScaffold(
+        title: 'Measurement Details',
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return AppScaffold(
       title: 'Measurement Details',
       padding: const EdgeInsets.all(AppSizes.lg),
@@ -90,12 +97,14 @@ class MeasurementDetailScreen extends ConsumerWidget {
                 ),
               ),
             const SizedBox(height: AppSizes.xl),
-            AppButton(
-              label: 'Edit',
-              onPressed: () => context.push(
-                '${AppRoutes.addMeasurement}?measurementId=$measurementId',
+            Center(
+              child: AppButton(
+                label: 'Edit',
+                onPressed: () => context.push(
+                  '${AppRoutes.addMeasurement}?measurementId=$measurementId',
+                ),
+                type: AppButtonType.secondary,
               ),
-              type: AppButtonType.secondary,
             ),
           ],
         ),
@@ -132,12 +141,15 @@ class MeasurementDetailScreen extends ConsumerWidget {
     );
   }
 
-  MeasurementModel _measurement(WidgetRef ref) {
-    final measurements = ref.watch(measurementsProvider);
-    return measurements.firstWhere(
-      (m) => m.id == measurementId,
-      orElse: () => throw Exception('Measurement not found'),
-    );
+  MeasurementModel? _measurement(WidgetRef ref) {
+    final measurementsAsync = ref.watch(measurementsProvider);
+    final measurements = measurementsAsync.value ?? [];
+    if (measurements.isEmpty) return null;
+    try {
+      return measurements.firstWhere((m) => m.id == measurementId);
+    } catch (_) {
+      return null;
+    }
   }
 
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
