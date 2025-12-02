@@ -29,8 +29,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final TextEditingController _phoneController;
   final _phoneFieldKey = GlobalKey<InternationalPhoneFieldState>();
   final _imagePicker = ImagePicker();
-  File? _profileImage;
+  File? _selectedImageFile; // Temporary file for new image selection
+  String? _existingImageUrl; // Existing image URL from Firestore
   bool _isLoading = false;
+  bool _isUploadingImage = false;
   bool _hasLoadedProfile = false;
 
   @override
@@ -47,12 +49,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _nameController.text = profile.name;
       _shopNameController.text = profile.shopName;
       _phoneController.text = profile.phone;
-      if (profile.profileImagePath != null) {
-        final imageFile = File(profile.profileImagePath!);
-        if (imageFile.existsSync()) {
-          _profileImage = imageFile;
-        }
-      }
+      // Store existing image URL from Firestore
+      _existingImageUrl = profile.imageUrl;
       _hasLoadedProfile = true;
     }
   }
@@ -74,7 +72,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         imageQuality: 85,
       );
       if (image != null) {
-        setState(() => _profileImage = File(image.path));
+        setState(() {
+          _selectedImageFile = File(image.path);
+          // Clear existing URL when new image is selected
+          _existingImageUrl = null;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -86,7 +88,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isUploadingImage = _selectedImageFile != null;
+    });
 
     try {
       // Get current profile to preserve email and uid
@@ -108,10 +113,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         phone: phone,
         email: currentProfile.email,
         uid: currentProfile.uid,
-        profileImagePath: _profileImage?.path,
+        imageUrl: _existingImageUrl, // Preserve existing URL if no new image
       );
 
-      await ref.read(profileProvider.notifier).updateProfile(profile);
+      // Update profile with optional image file
+      await ref
+          .read(profileProvider.notifier)
+          .updateProfile(
+            profile,
+            imageFile:
+                _selectedImageFile, // Will be null if no new image selected
+          );
 
       if (mounted) {
         SnackbarService.showSuccess(
@@ -126,7 +138,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isUploadingImage = false;
+        });
       }
     }
   }
@@ -155,13 +170,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           backgroundColor: AppColors.primary.withValues(
                             alpha: 0.12,
                           ),
-                          backgroundImage: _profileImage != null
-                              ? FileImage(_profileImage!)
-                              : null,
-                          child: _profileImage == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 56,
+                          backgroundImage: _selectedImageFile != null
+                              ? FileImage(_selectedImageFile!)
+                              : (_existingImageUrl != null
+                                    ? NetworkImage(_existingImageUrl!)
+                                    : null),
+                          child:
+                              _selectedImageFile == null &&
+                                  _existingImageUrl == null
+                              ? (_isUploadingImage
+                                    ? const CircularProgressIndicator(
+                                        color: AppColors.primary,
+                                      )
+                                    : const Icon(
+                                        Icons.person,
+                                        size: 56,
+                                        color: AppColors.primary,
+                                      ))
+                              : _isUploadingImage
+                              ? const CircularProgressIndicator(
                                   color: AppColors.primary,
                                 )
                               : null,
@@ -170,15 +197,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           bottom: 0,
                           right: 0,
                           child: GestureDetector(
-                            onTap: _pickImage,
+                            onTap: _isUploadingImage ? null : _pickImage,
                             child: CircleAvatar(
                               radius: 20,
                               backgroundColor: AppColors.primary,
-                              child: const Icon(
-                                Icons.camera_alt,
-                                color: AppColors.background,
-                                size: 18,
-                              ),
+                              child: _isUploadingImage
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.background,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.camera_alt,
+                                      color: AppColors.background,
+                                      size: 18,
+                                    ),
                             ),
                           ),
                         ),

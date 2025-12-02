@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../shared/services/secure_storage_service.dart';
+import '../../../shared/services/session_service.dart';
 
 class AuthRepository {
   AuthRepository({
@@ -121,6 +122,8 @@ class AuthRepository {
         await secureStorage.setUserEmail(userCredential.user!.email ?? email);
         // Mark onboarding as seen after login
         await secureStorage.setHasSeenOnboarding(true);
+        // Start new session (for first fitting time tracking)
+        await SessionService.instance.startSession();
 
         // Fetch and sync profile from Firestore after login
         try {
@@ -172,6 +175,8 @@ class AuthRepository {
       await secureStorage.clearAuthData();
       // Reset onboarding flag so it shows again after logout
       await secureStorage.setHasSeenOnboarding(false);
+      // Clear session data (first fitting time, etc.)
+      await SessionService.instance.clearSession();
     } catch (e) {
       throw Exception('Error signing out: $e');
     }

@@ -8,8 +8,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_inputs.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_scaffold.dart';
-import '../controllers/customers_controller.dart';
 import '../models/customer_model.dart';
+import '../services/customers_service.dart';
 import '../widgets/customer_card.dart';
 
 class CustomersListScreen extends ConsumerStatefulWidget {
@@ -31,7 +31,7 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customersAsync = ref.watch(customersProvider);
+    final customersAsync = ref.watch(customersStreamProvider);
 
     return customersAsync.when(
       data: (customers) {
@@ -39,8 +39,14 @@ class _CustomersListScreenState extends ConsumerState<CustomersListScreen> {
         return _buildContent(context, filtered);
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) =>
-          Center(child: Text('Error: $error', style: AppTextStyles.bodyLarge)),
+      error: (error, stack) => Center(
+        child: Text(
+          'No customers yet',
+          style: AppTextStyles.bodyLarge.copyWith(
+            color: AppColors.dark.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
     );
   }
 

@@ -7,20 +7,23 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../shared/services/secure_storage_service.dart';
+import '../../../shared/services/session_service.dart';
 import '../../../shared/widgets/custom_card.dart';
+import '../../customers/services/customers_service.dart';
 import '../../orders/models/order_model.dart';
 import '../../orders/services/orders_service.dart';
+import '../../profile/services/profile_service.dart';
 
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<String?>(
-      future: SecureStorageService.instance.getUserName(),
-      builder: (context, snapshot) {
-        final userName = snapshot.data ?? 'TailorX';
+    final profileAsync = ref.watch(profileStreamProvider);
+
+    return profileAsync.when(
+      data: (profile) {
+        final userName = profile?.name ?? 'TailorX';
         return Row(
           children: [
             GestureDetector(
@@ -28,11 +31,16 @@ class HomeHeader extends ConsumerWidget {
               child: CircleAvatar(
                 radius: 28,
                 backgroundColor: AppColors.surface.withValues(alpha: 0.9),
-                child: const Icon(
-                  Icons.person,
-                  color: AppColors.primary,
-                  size: AppSizes.iconMd,
-                ),
+                backgroundImage: profile?.imageUrl != null
+                    ? NetworkImage(profile!.imageUrl!)
+                    : null,
+                child: profile?.imageUrl == null
+                    ? const Icon(
+                        Icons.person,
+                        color: AppColors.primary,
+                        size: AppSizes.iconMd,
+                      )
+                    : null,
               ),
             ),
             const SizedBox(width: AppSizes.sm),
@@ -69,6 +77,52 @@ class HomeHeader extends ConsumerWidget {
           ],
         );
       },
+      loading: () => Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.surface.withValues(alpha: 0.9),
+            child: const Icon(
+              Icons.person,
+              color: AppColors.primary,
+              size: AppSizes.iconMd,
+            ),
+          ),
+          const SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Loading...', style: AppTextStyles.titleLarge),
+                Text('Studio workspace', style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+        ],
+      ),
+      error: (_, __) => Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.surface.withValues(alpha: 0.9),
+            child: const Icon(
+              Icons.person,
+              color: AppColors.primary,
+              size: AppSizes.iconMd,
+            ),
+          ),
+          const SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('TailorX', style: AppTextStyles.titleLarge),
+                Text('Studio workspace', style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -79,11 +133,11 @@ class WelcomeCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersStreamProvider);
+    final profileAsync = ref.watch(profileStreamProvider);
 
-    return FutureBuilder<String?>(
-      future: SecureStorageService.instance.getShopName(),
-      builder: (context, shopSnapshot) {
-        final shopName = shopSnapshot.data ?? 'TailorX';
+    return profileAsync.when(
+      data: (profile) {
+        final shopName = profile?.shopName ?? 'TailorX';
         return ordersAsync.when(
           data: (orders) {
             final today = DateTime.now();
@@ -96,92 +150,90 @@ class WelcomeCard extends ConsumerWidget {
                   order.createdAt.isBefore(todayEnd);
             }).length;
 
-            // Find nearest fitting time (delivery date) from today's orders
-            String? nearestFittingTime;
-            DateTime? nearestFitting;
-            for (final order in orders) {
-              if (order.deliveryDate.isAfter(DateTime.now())) {
-                if (nearestFitting == null ||
-                    order.deliveryDate.isBefore(nearestFitting)) {
-                  nearestFitting = order.deliveryDate;
+            // Get session start time for first fitting time
+            return FutureBuilder<DateTime?>(
+              future: SessionService.instance.getSessionStartTime(),
+              builder: (context, sessionSnapshot) {
+                String fittingTimeText = 'No upcoming fittings';
+                if (sessionSnapshot.hasData && sessionSnapshot.data != null) {
+                  final sessionStart = sessionSnapshot.data!;
+                  final timeFormat = DateFormat('h:mm a');
+                  fittingTimeText =
+                      'First fitting started at ${timeFormat.format(sessionStart)}';
                 }
-              }
-            }
 
-            if (nearestFitting != null) {
-              final timeFormat = DateFormat('h:mm a');
-              nearestFittingTime =
-                  'First fitting at ${timeFormat.format(nearestFitting)}';
-            } else {
-              nearestFittingTime = 'No upcoming fittings';
-            }
-
-            return CustomCard(
-              padding: const EdgeInsets.all(AppSizes.xl),
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.secondary],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 30,
-                  offset: const Offset(0, 18),
-                ),
-              ],
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back, $shopName',
-                    style: AppTextStyles.headlineMedium.copyWith(
-                      color: AppColors.background,
-                      fontWeight: FontWeight.w800,
-                    ),
+                return CustomCard(
+                  padding: const EdgeInsets.all(AppSizes.xl),
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.secondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: AppSizes.xs),
-                  Text(
-                    'You have $todayOrders ${todayOrders == 1 ? 'order' : 'orders'} today',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      color: AppColors.background.withValues(alpha: 0.9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 30,
+                      offset: const Offset(0, 18),
                     ),
-                  ),
-                  const SizedBox(height: AppSizes.xs),
-                  Text(
-                    DateFormat('EEEE, MMMM d, y').format(DateTime.now()),
-                    style: AppTextStyles.bodyRegular.copyWith(
-                      color: AppColors.background.withValues(alpha: 0.8),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.md),
-                  Row(
+                  ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(AppSizes.sm),
-                        decoration: BoxDecoration(
-                          color: AppColors.background.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          Icons.schedule,
+                      Text(
+                        'Welcome back, $shopName',
+                        style: AppTextStyles.headlineMedium.copyWith(
                           color: AppColors.background,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(width: AppSizes.sm),
-                      Expanded(
-                        child: Text(
-                          nearestFittingTime,
-                          style: AppTextStyles.bodyRegular.copyWith(
-                            color: AppColors.background.withValues(alpha: 0.9),
-                          ),
+                      const SizedBox(height: AppSizes.xs),
+                      Text(
+                        'You have $todayOrders ${todayOrders == 1 ? 'order' : 'orders'} today',
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: AppColors.background.withValues(alpha: 0.9),
                         ),
+                      ),
+                      const SizedBox(height: AppSizes.xs),
+                      Text(
+                        DateFormat('EEEE, MMMM d, y').format(DateTime.now()),
+                        style: AppTextStyles.bodyRegular.copyWith(
+                          color: AppColors.background.withValues(alpha: 0.8),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.md),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(AppSizes.sm),
+                            decoration: BoxDecoration(
+                              color: AppColors.background.withValues(
+                                alpha: 0.2,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Icon(
+                              Icons.schedule,
+                              color: AppColors.background,
+                            ),
+                          ),
+                          const SizedBox(width: AppSizes.sm),
+                          Expanded(
+                            child: Text(
+                              fittingTimeText,
+                              style: AppTextStyles.bodyRegular.copyWith(
+                                color: AppColors.background.withValues(
+                                  alpha: 0.9,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
           loading: () => CustomCard(
@@ -195,7 +247,7 @@ class WelcomeCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back, $shopName',
+                  'Welcome back, ${profile?.shopName ?? 'TailorX'}',
                   style: AppTextStyles.headlineMedium.copyWith(
                     color: AppColors.background,
                     fontWeight: FontWeight.w800,
@@ -229,7 +281,7 @@ class WelcomeCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Welcome back, $shopName',
+                    'Welcome back, ${profile?.shopName ?? 'TailorX'}',
                     style: AppTextStyles.headlineMedium.copyWith(
                       color: AppColors.background,
                       fontWeight: FontWeight.w800,
@@ -281,6 +333,41 @@ class WelcomeCard extends ConsumerWidget {
           },
         );
       },
+      loading: () => CustomCard(
+        padding: const EdgeInsets.all(AppSizes.xl),
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.background),
+        ),
+      ),
+      error: (_, __) => CustomCard(
+        padding: const EdgeInsets.all(AppSizes.xl),
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Welcome back, TailorX',
+              style: AppTextStyles.headlineMedium.copyWith(
+                color: AppColors.background,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSizes.md),
+            const Center(
+              child: CircularProgressIndicator(color: AppColors.background),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -374,6 +461,7 @@ class TodayStatsRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersStreamProvider);
+    final customersAsync = ref.watch(customersStreamProvider);
 
     return ordersAsync.when(
       data: (orders) {
@@ -398,10 +486,17 @@ class TodayStatsRow extends ConsumerWidget {
           return order.status == OrderStatus.completed;
         }).length;
 
+        // Get customer count from stream
+        final customerCount = customersAsync.maybeWhen(
+          data: (customers) => customers.length,
+          orElse: () => 0,
+        );
+
         final stats = [
           ('Today Orders', todayOrders.toString(), Icons.assignment_turned_in),
           ('Pending', pendingOrders.toString(), Icons.timer),
           ('Completed', completedOrders.toString(), Icons.check_circle_outline),
+          ('Customers', customerCount.toString(), Icons.people),
         ];
 
         return LayoutBuilder(

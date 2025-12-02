@@ -6,6 +6,7 @@ class ProfileModel {
     required this.email,
     required this.uid,
     this.profileImagePath,
+    this.imageUrl,
   });
 
   final String name;
@@ -13,7 +14,8 @@ class ProfileModel {
   final String phone;
   final String email;
   final String uid;
-  final String? profileImagePath;
+  final String? profileImagePath; // Deprecated: kept for backward compatibility
+  final String? imageUrl; // Firebase Storage download URL (primary)
 
   ProfileModel copyWith({
     String? name,
@@ -22,6 +24,7 @@ class ProfileModel {
     String? email,
     String? uid,
     String? profileImagePath,
+    String? imageUrl,
   }) {
     return ProfileModel(
       name: name ?? this.name,
@@ -30,6 +33,7 @@ class ProfileModel {
       email: email ?? this.email,
       uid: uid ?? this.uid,
       profileImagePath: profileImagePath ?? this.profileImagePath,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 
@@ -41,6 +45,7 @@ class ProfileModel {
       'email': email,
       'uid': uid,
       'profileImagePath': profileImagePath,
+      'imageUrl': imageUrl,
     };
   }
 
@@ -52,6 +57,7 @@ class ProfileModel {
       email: json['email'] as String,
       uid: json['uid'] as String,
       profileImagePath: json['profileImagePath'] as String?,
+      imageUrl: json['imageUrl'] as String?,
     );
   }
 

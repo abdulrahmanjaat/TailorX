@@ -1,11 +1,24 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_sizes.dart';
+import '../../../shared/services/session_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../widgets/home_sections.dart';
 import '../widgets/custom_bottom_nav_bar.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Start session when home screen opens (if not already started)
+    SessionService.instance.startSession();
+  }
 
   @override
   Widget build(BuildContext context) {

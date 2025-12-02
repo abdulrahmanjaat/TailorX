@@ -31,15 +31,26 @@ class ProfileFirestoreRepository {
 
   /// Convert ProfileModel to Firestore Map
   Map<String, dynamic> _toMap(ProfileModel profile) {
-    return {
+    final map = <String, dynamic>{
       'name': profile.name,
       'shopName': profile.shopName,
       'phone': profile.phone,
       'email': profile.email,
       'uid': profile.uid,
-      'profileImagePath': profile.profileImagePath,
       'updatedAt': FieldValue.serverTimestamp(),
     };
+
+    // Only include imageUrl if it's not null
+    if (profile.imageUrl != null) {
+      map['imageUrl'] = profile.imageUrl;
+    }
+
+    // Keep profileImagePath for backward compatibility (but prefer imageUrl)
+    if (profile.profileImagePath != null && profile.imageUrl == null) {
+      map['profileImagePath'] = profile.profileImagePath;
+    }
+
+    return map;
   }
 
   /// Convert Firestore Document to ProfileModel
@@ -51,6 +62,7 @@ class ProfileFirestoreRepository {
       email: map['email'] as String? ?? '',
       uid: uid,
       profileImagePath: map['profileImagePath'] as String?,
+      imageUrl: map['imageUrl'] as String?,
     );
   }
 

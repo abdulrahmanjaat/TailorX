@@ -45,6 +45,7 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
   cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.4
   
   # Secure Storage
   flutter_secure_storage: ^9.2.2
@@ -59,6 +60,9 @@ dependencies:
   
   # Date Formatting
   intl: ^0.19.0
+  
+  # URL Launcher for calls, SMS, and WhatsApp
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
