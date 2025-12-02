@@ -587,14 +587,16 @@ flutter build web --release
 - **Customers**: Stored in Firestore at `users/{uid}/customers/{customerId}`
 - **Measurements**: Stored in Firestore at `users/{uid}/measurements/{measurementId}`
 - **Orders**: Stored in Firestore at `users/{uid}/orders/{orderId}`
-- **Profile**: Stored in Firestore at `users/{uid}`
+- **Profile**: Stored in Firestore at `users/{uid}` (includes `imageUrl` field)
+- **Profile Images**: Stored in Firebase Storage at `users/{uid}/profile/profile.jpg`
 
 **Data Isolation**: All data is scoped to the authenticated user's UID, ensuring complete multi-user isolation. Each user can only access their own data. See `FIRESTORE_DATA_ISOLATION.md` for detailed architecture documentation.
 
 **Data Persistence**: 
 - Data persists in Firestore across login sessions
+- Profile images persist in Firebase Storage across login sessions
 - Local secure storage is used for offline access and faster retrieval
-- On logout, only local storage is cleared; Firestore data remains intact
+- On logout, only local storage is cleared; Firestore data and Storage files remain intact
 
 ---
 
