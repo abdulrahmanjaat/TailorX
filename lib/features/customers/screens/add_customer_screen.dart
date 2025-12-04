@@ -74,11 +74,11 @@ class _AddCustomerScreenState extends ConsumerState<AddCustomerScreen> {
 
     if (existingCustomer != null) {
       // Customer already exists - redirect to customer detail screen
-      SnackbarService.showInfo(
-        context,
-        message: 'Customer already exists. Opening customer details...',
-      );
       if (mounted) {
+        SnackbarService.showInfo(
+          context,
+          message: 'Customer already exists. Opening customer details...',
+        );
         context.pushReplacement(
           '${AppRoutes.customerDetail}/${existingCustomer.id}',
         );

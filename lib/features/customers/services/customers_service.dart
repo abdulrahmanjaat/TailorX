@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/customer_model.dart';
@@ -41,7 +42,7 @@ final customersStreamProvider = StreamProvider<List<CustomerModel>>((
     yield* repository.streamAllCustomers();
   } catch (e) {
     // If there's any error, yield empty list instead of propagating error
-    print('Error in customersStreamProvider: $e');
+    debugPrint('Error in customersStreamProvider: $e');
     yield <CustomerModel>[];
   }
 });

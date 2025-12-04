@@ -1,23 +1,21 @@
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 /// Email service for sending receipts to customers
 ///
-/// This service provides a placeholder for email sending functionality.
-/// To enable email sending, you need to:
-/// 1. Configure an email service (SMTP, SendGrid, EmailJS, etc.)
-/// 2. Implement the actual sending logic in the sendReceiptEmail method
-/// 3. Or connect to a backend API that handles email sending
+/// This service uses the device's default email client to send receipts.
+/// When called, it opens the email app with pre-filled recipient, subject, and body.
 class EmailService {
   EmailService._();
 
   /// Sends a receipt email to the customer
   ///
-  /// Returns true if email was sent successfully, false otherwise
+  /// Opens the default email client with pre-filled recipient, subject, and body.
+  /// Returns true if the email client was opened successfully, false otherwise.
   ///
-  /// TODO: Implement actual email sending logic
-  /// Options:
-  /// 1. Use mailer package with SMTP (requires SMTP server configuration)
-  /// 2. Use SendGrid API (requires API key)
-  /// 3. Use EmailJS (requires service configuration)
-  /// 4. Connect to backend API endpoint
+  /// Note: This requires the user to manually send the email from their email app.
+  /// For automated sending, consider implementing a backend API or using a service
+  /// like SendGrid, EmailJS, or SMTP server.
   static Future<bool> sendReceiptEmail({
     required String recipientEmail,
     required String customerName,
@@ -67,56 +65,38 @@ ${notes != null && notes.isNotEmpty ? 'Notes: $notes\n' : ''}
 Thank you for choosing our tailoring services.
       ''';
 
-      // TODO: Implement actual email sending
-      // Example implementations:
+      // Build mailto URI with encoded subject and body
+      final subject = 'Order Receipt - $orderId';
+      final encodedSubject = Uri.encodeComponent(subject);
+      final encodedBody = Uri.encodeComponent(emailBody);
+      final mailtoUri = Uri.parse(
+        'mailto:$recipientEmail?subject=$encodedSubject&body=$encodedBody',
+      );
 
-      // Option 1: Using mailer package with SMTP
-      // import 'package:mailer/mailer.dart';
-      // final smtpServer = SmtpServer('smtp.gmail.com', port: 587);
-      // final message = Message()
-      //   ..from = Address('your-email@gmail.com', 'TailorX')
-      //   ..recipients.add(recipientEmail)
-      //   ..subject = 'Order Receipt - $orderId'
-      //   ..text = emailBody;
-      // await send(message, smtpServer);
-
-      // Option 2: Using SendGrid API
-      // final response = await http.post(
-      //   Uri.parse('https://api.sendgrid.com/v3/mail/send'),
-      //   headers: {'Authorization': 'Bearer YOUR_API_KEY'},
-      //   body: jsonEncode({...}),
-      // );
-
-      // Option 3: Using backend API
-      // final response = await http.post(
-      //   Uri.parse('https://your-api.com/send-email'),
-      //   body: jsonEncode({
-      //     'to': recipientEmail,
-      //     'subject': 'Order Receipt - $orderId',
-      //     'body': emailBody,
-      //   }),
-      // );
-
-      // For now, log the email (in production, implement actual sending)
-      print('Email would be sent to: $recipientEmail');
-      print('Subject: Order Receipt - $orderId');
-      print('Body:\n$emailBody');
-
-      // Return true to indicate email was "sent" (update this when implementing actual sending)
-      // For now, return true so UI shows success message
-      // Change to false if you want to show "not configured" message
-      return true;
+      // Launch the email client
+      try {
+        final launched = await launchUrl(mailtoUri);
+        if (launched) {
+          debugPrint('Email client opened successfully for: $recipientEmail');
+          return true;
+        } else {
+          debugPrint('Failed to open email client');
+          return false;
+        }
+      } catch (e) {
+        debugPrint('Error opening email client: $e');
+        return false;
+      }
     } catch (e) {
       // Log error (in production, use proper logging)
-      print('Error sending email: $e');
+      debugPrint('Error sending email: $e');
       return false;
     }
   }
 
   /// Checks if email service is configured
-  /// Update this when you implement actual email sending
+  /// Returns true as the service uses the device's default email client
   static bool get isConfigured {
-    // TODO: Return true when email service is actually configured
-    return true; // Change to false if you want to show "not configured" message
+    return true;
   }
 }

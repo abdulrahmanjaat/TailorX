@@ -177,7 +177,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: AppSizes.xxl + AppSizes.lg),
               AppInputField(
                 labelText: 'Full name',
-                hintText: 'Avery Laurent',
+                hintText: 'Abdul Rahman',
                 controller: _nameController,
                 validator: (value) =>
                     Validators.requiredField(value, fieldName: 'Name'),
@@ -189,7 +189,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: AppSizes.lg),
               AppInputField(
                 labelText: 'Shop / Studio',
-                hintText: 'Maison Atelier',
+                hintText: 'TailorX',
                 controller: _organizationController,
                 validator: (value) =>
                     Validators.requiredField(value, fieldName: 'Studio'),

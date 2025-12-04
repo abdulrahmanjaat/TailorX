@@ -27,7 +27,7 @@ class CustomerCard extends StatelessWidget {
             : 'Unable to open messaging app. Please try again.';
         SnackbarService.showError(context, message: errorMessage);
       }
-      print('Error opening WhatsApp/SMS: $e');
+      debugPrint('Error opening WhatsApp/SMS: $e');
     }
   }
 
@@ -44,7 +44,7 @@ class CustomerCard extends StatelessWidget {
             : 'Unable to make call. Please try again.';
         SnackbarService.showError(context, message: errorMessage);
       }
-      print('Error making call: $e');
+      debugPrint('Error making call: $e');
     }
   }
 

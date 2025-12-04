@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/profile_model.dart';
@@ -33,7 +34,7 @@ final profileStreamProvider = StreamProvider<ProfileModel?>((ref) async* {
   try {
     yield* repository.streamProfile();
   } catch (e) {
-    print('Error in profileStreamProvider: $e');
+    debugPrint('Error in profileStreamProvider: $e');
     yield null;
   }
 });

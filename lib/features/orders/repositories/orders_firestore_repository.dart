@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/order_model.dart';
 import '../models/order_item_model.dart';
 import '../../../shared/services/secure_storage_service.dart';
@@ -199,25 +200,25 @@ class OrdersFirestoreRepository {
                     try {
                       return _fromMap(doc.data());
                     } catch (e) {
-                      print('Error parsing order document ${doc.id}: $e');
+                      debugPrint('Error parsing order document ${doc.id}: $e');
                       return null;
                     }
                   })
                   .whereType<OrderModel>()
                   .toList();
             } catch (e) {
-              print('Error processing order snapshot: $e');
+              debugPrint('Error processing order snapshot: $e');
               return <OrderModel>[];
             }
           })
           .handleError((error, stackTrace) {
             // Log error but continue - will be caught by outer try-catch
-            print('Error in orders stream: $error');
+            debugPrint('Error in orders stream: $error');
           });
     } catch (e) {
       // Catch any errors during stream setup (e.g., permission denied, collection doesn't exist)
       // Return empty list instead of throwing - this handles new users gracefully
-      print('Error setting up orders stream: $e');
+      debugPrint('Error setting up orders stream: $e');
       yield <OrderModel>[];
     }
   }

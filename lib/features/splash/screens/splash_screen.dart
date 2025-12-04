@@ -10,7 +10,6 @@ import '../../../shared/services/location_service.dart';
 import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/aurora_background.dart';
-import '../../../shared/widgets/custom_card.dart';
 import '../controllers/splash_controller.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -20,12 +19,69 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen>
+    with TickerProviderStateMixin {
   bool _hasRequestedPermission = false;
+  late AnimationController _logoAnimationController;
+  late AnimationController _textAnimationController;
+  late Animation<double> _logoFadeAnimation;
+  late Animation<double> _logoScaleAnimation;
+  final List<Animation<double>> _charAnimations = [];
 
   @override
   void initState() {
     super.initState();
+
+    // Logo animation controller
+    _logoAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoAnimationController, curve: Curves.easeIn),
+    );
+
+    _logoScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _logoAnimationController, curve: Curves.easeOut),
+    );
+
+    // Text animation controller - starts after logo animation
+    _textAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    // Create staggered animations for each character
+    const text = 'TailorX';
+    for (int i = 0; i < text.length; i++) {
+      final start = i * 0.1; // Stagger each character by 0.1 seconds
+      final end = start + 0.5; // Each character animates for 0.5 seconds
+
+      _charAnimations.add(
+        Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(
+            parent: _textAnimationController,
+            curve: Interval(
+              start.clamp(0.0, 1.0),
+              end.clamp(0.0, 1.0),
+              curve: Curves.easeOut,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Start logo animation
+    _logoAnimationController.forward();
+
+    // Start text animation after a short delay
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        _textAnimationController.forward();
+      }
+    });
+
     // Request location permission after the screen is visible
     // Add a small delay to ensure the UI is fully ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -35,6 +91,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         }
       });
     });
+  }
+
+  @override
+  void dispose() {
+    _logoAnimationController.dispose();
+    _textAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _requestLocationPermission() async {
@@ -50,7 +113,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       }
     } catch (e) {
       // Silently handle errors - app will work without location
-      print('Location service error: $e');
+      debugPrint('Location service error: $e');
     }
   }
 
@@ -75,90 +138,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             padding: const EdgeInsets.all(AppSizes.lg),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                return SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppSizes.lg),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _SplashOrb(),
-                              const SizedBox(height: AppSizes.lg),
-                              Text(
-                                'TailorX',
-                                style: AppTextStyles.headlineLarge.copyWith(
-                                  color: AppColors.dark,
-                                ),
-                              ),
-                              const SizedBox(height: AppSizes.xs),
-                              Text(
-                                'Luxury workflow intelligence for couture houses',
-                                style: AppTextStyles.bodyLarge,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: AppSizes.lg),
-                              Wrap(
-                                spacing: AppSizes.md,
-                                runSpacing: AppSizes.md,
-                                alignment: WrapAlignment.center,
-                                children: const [
-                                  _SplashChip(
-                                    label: 'Global ateliers online',
-                                    value: '58',
-                                  ),
-                                  _SplashChip(
-                                    label: 'Precision fit rate',
-                                    value: '99.2%',
-                                  ),
-                                  _SplashChip(
-                                    label: 'Processing orders',
-                                    value: '124',
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FadeTransition(
+                        opacity: _logoFadeAnimation,
+                        child: ScaleTransition(
+                          scale: _logoScaleAnimation,
+                          child: _SplashOrb(),
                         ),
-                        CustomCard(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSizes.lg,
-                            vertical: AppSizes.md,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Crafted precision for modern ateliers',
-                                  style: AppTextStyles.bodyLarge,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSizes.md,
-                                  vertical: AppSizes.xs,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(30),
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                ),
-                                child: Text(
-                                  'v1.0.0',
-                                  style: AppTextStyles.caption,
-                                ),
-                              ),
-                            ],
-                          ),
+                      ),
+                      const SizedBox(height: AppSizes.xl),
+                      _AnimatedText(
+                        text: 'TailorX',
+                        charAnimations: _charAnimations,
+                        style: AppTextStyles.headlineLarge.copyWith(
+                          color: AppColors.dark,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -166,6 +167,39 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AnimatedText extends StatelessWidget {
+  const _AnimatedText({
+    required this.text,
+    required this.charAnimations,
+    required this.style,
+  });
+
+  final String text;
+  final List<Animation<double>> charAnimations;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(text.length, (index) {
+        return AnimatedBuilder(
+          animation: charAnimations[index],
+          builder: (context, child) {
+            return Opacity(
+              opacity: charAnimations[index].value,
+              child: Transform.translate(
+                offset: Offset(0, 20 * (1 - charAnimations[index].value)),
+                child: Text(text[index], style: style),
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }
@@ -222,36 +256,6 @@ class _SplashOrb extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SplashChip extends StatelessWidget {
-  const _SplashChip({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.lg,
-        vertical: AppSizes.sm,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        color: Colors.white.withValues(alpha: 0.7),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: AppTextStyles.caption),
-          Text(value, style: AppTextStyles.titleLarge),
         ],
       ),
     );

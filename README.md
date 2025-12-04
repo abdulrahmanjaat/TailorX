@@ -644,7 +644,84 @@ For detailed information, see:
 
 ## 🎨 Recent Improvements
 
-### Profile Image Upload with Firebase Storage (Latest Update)
+### Notification System Implementation (Latest Update)
+
+#### Complete Firestore-Based Notification System
+- **Real-Time Notifications**: Full notification system built on Firestore with real-time updates using streams
+- **Client-Side Only**: All notification logic runs on the client side (no Firebase Functions required)
+- **User-Scoped Data**: Notifications stored under `users/{uid}/notifications/{notificationId}` for complete data isolation
+
+#### Notification Types
+- **Customer Added**: Notifies when a new customer is added
+- **Measurement Saved**: Notifies when a measurement is saved
+- **Order Created**: Notifies when a new order is created
+- **Order Status Updated**: Notifies when order status changes to completed
+- **Fitting Date Assigned**: Notifies when a fitting date is assigned (ready for future use)
+- **Delivery Date Assigned**: Notifies when delivery date is assigned or updated
+
+#### Notification Features
+- **Real-Time Streams**: All notifications update in real-time using Firestore streams
+- **Unread Badge**: Home screen header shows unread notification count badge
+- **Notification List Screen**: Complete UI with tabs (All/Read/Unread), swipe to delete, and mark all as read
+- **Order Navigation**: Tapping notifications with orderId navigates to order detail screen
+- **Auto-Read**: Notifications marked as read when tapped
+
+#### Technical Implementation
+- **NotificationModel**: Complete model with id, title, message, type, orderId, createdAt, isRead
+- **NotificationsFirestoreRepository**: Repository with createNotification, streamAllNotifications, markAsRead, markAllAsRead, streamUnreadCount
+- **NotificationService**: Service layer for triggering notifications across the app
+- **Riverpod Providers**: notificationServiceProvider, notificationsStreamProvider, unreadCountProvider
+- **Firestore Rules**: Security rules added for notifications subcollection
+
+#### Integration Points
+- **CustomersController**: Triggers notification on customer add
+- **OrdersController**: Triggers notifications on order create and status update
+- **MeasurementsController**: Triggers notification on measurement save
+- **EditOrderScreen**: Triggers notification when delivery date changes
+
+### Home Screen Welcome Card Enhancement
+
+#### Improved Delivery Information Display
+- **Removed**: "First fitting started at [login time]" - removed session-based time display
+- **Added**: Next delivery date information with smart formatting:
+  - "Delivery due today" for today's deliveries
+  - "Delivery tomorrow" for next day deliveries
+  - "Delivery in X days" for upcoming deliveries (within 7 days)
+  - Date format for deliveries more than 7 days away
+  - "X days overdue" for overdue deliveries with warning icon
+- **Pending Orders Count**: Shows number of pending (non-completed) orders
+- **Dynamic Icons**: Icons change based on delivery status (warning for overdue, calendar for upcoming)
+
+### Splash Screen Redesign
+
+#### Simplified Splash Screen
+- **Removed Elements**:
+  - "Global ateliers online" statistics card
+  - "Precision fit rate" statistics card
+  - "Processing orders" statistics card
+  - "Crafted precision for modern ateliers" footer card
+  - "Luxury workflow intelligence for couture houses" tagline
+- **Kept Elements**:
+  - Logo (_SplashOrb) with fade and scale animations
+  - TailorX name with character-by-character animation
+
+#### Character-by-Character Animation
+- **Sequential Animation**: Each letter of "TailorX" animates individually
+- **Animation Effects**:
+  - Fade-in (opacity 0 → 1)
+  - Slide-up (starts 20px below, moves to position)
+  - Staggered timing (each character starts 0.1 seconds after previous)
+- **Timing**: Logo animates first (1.5s), then text animation starts after 800ms delay
+- **Duration**: Splash screen stays visible for 3.5 seconds before navigation
+
+#### Animation Sequence
+1. Logo fades in and scales up (0-1.5s)
+2. Text animation starts (0.8s delay)
+3. Characters animate sequentially: T → a → i → l → o → r → X
+4. Complete animation finishes in ~2.7 seconds
+5. Screen navigates after 3.5 seconds total
+
+### Profile Image Upload with Firebase Storage
 
 #### Profile Image Management
 - **Firebase Storage Integration**: Profile images are now uploaded to Firebase Storage instead of local storage

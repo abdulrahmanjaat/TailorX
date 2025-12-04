@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,9 +9,9 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../shared/services/session_service.dart';
 import '../../../shared/widgets/custom_card.dart';
 import '../../customers/services/customers_service.dart';
+import '../../notifications/providers/notifications_providers.dart';
 import '../../orders/models/order_model.dart';
 import '../../orders/services/orders_service.dart';
 import '../../profile/services/profile_service.dart';
@@ -31,10 +33,10 @@ class HomeHeader extends ConsumerWidget {
               child: CircleAvatar(
                 radius: 28,
                 backgroundColor: AppColors.surface.withValues(alpha: 0.9),
-                backgroundImage: profile?.imageUrl != null
-                    ? NetworkImage(profile!.imageUrl!)
+                backgroundImage: profile?.profileImagePath != null
+                    ? FileImage(File(profile!.profileImagePath!))
                     : null,
-                child: profile?.imageUrl == null
+                child: profile?.profileImagePath == null
                     ? const Icon(
                         Icons.person,
                         color: AppColors.primary,
@@ -53,26 +55,50 @@ class HomeHeader extends ConsumerWidget {
                 ],
               ),
             ),
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  onPressed: () => context.push(AppRoutes.notifications),
-                  icon: const Icon(Icons.notifications_none),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.primary,
+            Consumer(
+              builder: (context, ref, child) {
+                final unreadCountAsync = ref.watch(unreadCountProvider);
+                final unreadCount = unreadCountAsync.when(
+                  data: (count) => count,
+                  loading: () => 0,
+                  error: (_, _) => 0,
+                );
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      onPressed: () => context.push(AppRoutes.notifications),
+                      icon: const Icon(Icons.notifications_none),
                     ),
-                  ),
-                ),
-              ],
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.error,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            unreadCount > 99 ? '99+' : '$unreadCount',
+                            style: const TextStyle(
+                              color: AppColors.background,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ],
         );
@@ -100,7 +126,7 @@ class HomeHeader extends ConsumerWidget {
           ),
         ],
       ),
-      error: (_, __) => Row(
+      error: (_, _) => Row(
         children: [
           CircleAvatar(
             radius: 28,
@@ -150,90 +176,129 @@ class WelcomeCard extends ConsumerWidget {
                   order.createdAt.isBefore(todayEnd);
             }).length;
 
-            // Get session start time for first fitting time
-            return FutureBuilder<DateTime?>(
-              future: SessionService.instance.getSessionStartTime(),
-              builder: (context, sessionSnapshot) {
-                String fittingTimeText = 'No upcoming fittings';
-                if (sessionSnapshot.hasData && sessionSnapshot.data != null) {
-                  final sessionStart = sessionSnapshot.data!;
-                  final timeFormat = DateFormat('h:mm a');
-                  fittingTimeText =
-                      'First fitting started at ${timeFormat.format(sessionStart)}';
-                }
+            // Get upcoming orders (not completed)
+            final upcomingOrders = orders
+                .where((order) => order.status != OrderStatus.completed)
+                .toList();
 
-                return CustomCard(
-                  padding: const EdgeInsets.all(AppSizes.xl),
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                      blurRadius: 30,
-                      offset: const Offset(0, 18),
+            // Get next delivery date
+            String deliveryInfo = 'No upcoming deliveries';
+            IconData deliveryIcon = Icons.calendar_today;
+
+            if (upcomingOrders.isNotEmpty) {
+              // Sort by delivery date and get the nearest one
+              upcomingOrders.sort(
+                (a, b) => a.deliveryDate.compareTo(b.deliveryDate),
+              );
+              final nextDelivery = upcomingOrders.first.deliveryDate;
+              final now = DateTime.now();
+              final daysUntilDelivery = nextDelivery.difference(now).inDays;
+
+              if (daysUntilDelivery < 0) {
+                deliveryInfo =
+                    '${daysUntilDelivery.abs()} ${daysUntilDelivery.abs() == 1 ? 'day' : 'days'} overdue';
+                deliveryIcon = Icons.warning;
+              } else if (daysUntilDelivery == 0) {
+                deliveryInfo = 'Delivery due today';
+                deliveryIcon = Icons.today;
+              } else if (daysUntilDelivery == 1) {
+                deliveryInfo = 'Delivery tomorrow';
+                deliveryIcon = Icons.event;
+              } else if (daysUntilDelivery <= 7) {
+                deliveryInfo = 'Delivery in $daysUntilDelivery days';
+                deliveryIcon = Icons.schedule;
+              } else {
+                deliveryInfo = DateFormat('MMM d').format(nextDelivery);
+                deliveryIcon = Icons.calendar_today;
+              }
+            }
+
+            // Calculate total pending orders
+            final pendingOrdersCount = upcomingOrders.length;
+
+            return CustomCard(
+              padding: const EdgeInsets.all(AppSizes.xl),
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.secondary],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 30,
+                  offset: const Offset(0, 18),
+                ),
+              ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back, $shopName',
+                    style: AppTextStyles.headlineMedium.copyWith(
+                      color: AppColors.background,
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  const SizedBox(height: AppSizes.xs),
+                  Text(
+                    'You have $todayOrders ${todayOrders == 1 ? 'order' : 'orders'} today',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      color: AppColors.background.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.xs),
+                  Text(
+                    DateFormat('EEEE, MMMM d, y').format(DateTime.now()),
+                    style: AppTextStyles.bodyRegular.copyWith(
+                      color: AppColors.background.withValues(alpha: 0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.md),
+                  Row(
                     children: [
-                      Text(
-                        'Welcome back, $shopName',
-                        style: AppTextStyles.headlineMedium.copyWith(
-                          color: AppColors.background,
-                          fontWeight: FontWeight.w800,
+                      Container(
+                        padding: const EdgeInsets.all(AppSizes.sm),
+                        decoration: BoxDecoration(
+                          color: AppColors.background.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(16),
                         ),
+                        child: Icon(deliveryIcon, color: AppColors.background),
                       ),
-                      const SizedBox(height: AppSizes.xs),
-                      Text(
-                        'You have $todayOrders ${todayOrders == 1 ? 'order' : 'orders'} today',
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          color: AppColors.background.withValues(alpha: 0.9),
-                        ),
-                      ),
-                      const SizedBox(height: AppSizes.xs),
-                      Text(
-                        DateFormat('EEEE, MMMM d, y').format(DateTime.now()),
-                        style: AppTextStyles.bodyRegular.copyWith(
-                          color: AppColors.background.withValues(alpha: 0.8),
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: AppSizes.md),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(AppSizes.sm),
-                            decoration: BoxDecoration(
-                              color: AppColors.background.withValues(
-                                alpha: 0.2,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Icon(
-                              Icons.schedule,
-                              color: AppColors.background,
-                            ),
-                          ),
-                          const SizedBox(width: AppSizes.sm),
-                          Expanded(
-                            child: Text(
-                              fittingTimeText,
+                      const SizedBox(width: AppSizes.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              deliveryInfo,
                               style: AppTextStyles.bodyRegular.copyWith(
                                 color: AppColors.background.withValues(
                                   alpha: 0.9,
                                 ),
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                        ],
+                            if (pendingOrdersCount > 0) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '$pendingOrdersCount ${pendingOrdersCount == 1 ? 'order' : 'orders'} pending',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.background.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                );
-              },
+                ],
+              ),
             );
           },
           loading: () => CustomCard(
@@ -344,7 +409,7 @@ class WelcomeCard extends ConsumerWidget {
           child: CircularProgressIndicator(color: AppColors.background),
         ),
       ),
-      error: (_, __) => CustomCard(
+      error: (_, _) => CustomCard(
         padding: const EdgeInsets.all(AppSizes.xl),
         gradient: LinearGradient(
           colors: [AppColors.primary, AppColors.secondary],

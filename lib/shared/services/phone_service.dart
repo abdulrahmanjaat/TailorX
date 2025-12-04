@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Service for handling phone calls, SMS, and WhatsApp
@@ -65,7 +66,7 @@ class PhoneService {
       // Fallback to SMS if WhatsApp is not available
       await sendSMS(phone);
     } catch (e) {
-      print('Error opening WhatsApp/SMS: $e');
+      debugPrint('Error opening WhatsApp/SMS: $e');
       // Try SMS as fallback
       try {
         await sendSMS(phone);
@@ -96,7 +97,7 @@ class PhoneService {
         );
       }
     } catch (e) {
-      print('Error sending SMS: $e');
+      debugPrint('Error sending SMS: $e');
       rethrow;
     }
   }
@@ -124,7 +125,7 @@ class PhoneService {
         );
       }
     } catch (e) {
-      print('Error making call: $e');
+      debugPrint('Error making call: $e');
       rethrow;
     }
   }

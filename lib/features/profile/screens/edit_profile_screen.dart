@@ -30,7 +30,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _phoneFieldKey = GlobalKey<InternationalPhoneFieldState>();
   final _imagePicker = ImagePicker();
   File? _selectedImageFile; // Temporary file for new image selection
-  String? _existingImageUrl; // Existing image URL from Firestore
+  String? _existingImagePath; // Existing image path from local storage
   bool _isLoading = false;
   bool _isUploadingImage = false;
   bool _hasLoadedProfile = false;
@@ -49,8 +49,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _nameController.text = profile.name;
       _shopNameController.text = profile.shopName;
       _phoneController.text = profile.phone;
-      // Store existing image URL from Firestore
-      _existingImageUrl = profile.imageUrl;
+      // Store existing image path from local storage
+      _existingImagePath = profile.profileImagePath;
       _hasLoadedProfile = true;
     }
   }
@@ -74,8 +74,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (image != null) {
         setState(() {
           _selectedImageFile = File(image.path);
-          // Clear existing URL when new image is selected
-          _existingImageUrl = null;
+          // Clear existing path when new image is selected
+          _existingImagePath = null;
         });
       }
     } catch (e) {
@@ -113,7 +113,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         phone: phone,
         email: currentProfile.email,
         uid: currentProfile.uid,
-        imageUrl: _existingImageUrl, // Preserve existing URL if no new image
+        profileImagePath:
+            _existingImagePath, // Preserve existing path if no new image
       );
 
       // Update profile with optional image file
@@ -172,12 +173,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           ),
                           backgroundImage: _selectedImageFile != null
                               ? FileImage(_selectedImageFile!)
-                              : (_existingImageUrl != null
-                                    ? NetworkImage(_existingImageUrl!)
+                              : (_existingImagePath != null
+                                    ? FileImage(File(_existingImagePath!))
                                     : null),
                           child:
                               _selectedImageFile == null &&
-                                  _existingImageUrl == null
+                                  _existingImagePath == null
                               ? (_isUploadingImage
                                     ? const CircularProgressIndicator(
                                         color: AppColors.primary,

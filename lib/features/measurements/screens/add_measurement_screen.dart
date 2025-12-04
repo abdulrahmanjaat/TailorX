@@ -219,7 +219,12 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
 
     final customersAsync = ref.read(customersProvider);
     final customers = customersAsync.value ?? [];
-    final customer = customers.firstWhere((c) => c.id == _selectedCustomerId);
+    final customer = customers.firstWhere(
+      (c) => c.id == _selectedCustomerId,
+      orElse: () {
+        throw Exception('Customer not found. Please select a valid customer.');
+      },
+    );
 
     final values = <String, double>{};
     _controllers.forEach((key, controller) {
@@ -306,36 +311,44 @@ class _AddMeasurementScreenState extends ConsumerState<AddMeasurementScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_customerFromRoute && _selectedCustomerId != null)
-                CustomCard(
-                  padding: const EdgeInsets.all(AppSizes.md),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person, color: AppColors.primary),
-                      const SizedBox(width: AppSizes.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Customer', style: AppTextStyles.caption),
-                            Text(
-                              customers
-                                  .firstWhere(
-                                    (c) => c.id == _selectedCustomerId,
-                                  )
-                                  .name,
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                Builder(
+                  builder: (context) {
+                    final customer =
+                        customers
+                            .where((c) => c.id == _selectedCustomerId)
+                            .isNotEmpty
+                        ? customers.firstWhere(
+                            (c) => c.id == _selectedCustomerId,
+                          )
+                        : null;
+                    return CustomCard(
+                      padding: const EdgeInsets.all(AppSizes.md),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person, color: AppColors.primary),
+                          const SizedBox(width: AppSizes.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Customer', style: AppTextStyles.caption),
+                                Text(
+                                  customer?.name ?? 'Customer not found',
+                                  style: AppTextStyles.bodyLarge.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 )
               else
                 DropdownButtonFormField<String>(
-                  value: _selectedCustomerId,
+                  initialValue: _selectedCustomerId,
                   items: customers
                       .map(
                         (customer) => DropdownMenuItem(

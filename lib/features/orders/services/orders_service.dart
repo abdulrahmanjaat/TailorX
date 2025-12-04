@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/services/auth_service.dart';
 import '../models/order_model.dart';
@@ -41,7 +42,7 @@ final ordersStreamProvider = StreamProvider<List<OrderModel>>((ref) async* {
     yield* repository.streamAllOrders();
   } catch (e) {
     // If there's any error, yield empty list instead of propagating error
-    print('Error in ordersStreamProvider: $e');
+    debugPrint('Error in ordersStreamProvider: $e');
     yield <OrderModel>[];
   }
 });

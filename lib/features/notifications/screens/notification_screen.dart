@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/widgets/app_scaffold.dart';
@@ -195,7 +196,15 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen>
                         final item = filtered[index];
                         return _NotificationCard(
                           item: item,
-                          onTap: () => notifier.markAsRead(item.id),
+                          onTap: () {
+                            notifier.markAsRead(item.id);
+                            // Navigate to order detail if orderId exists
+                            if (item.orderId != null) {
+                              context.push(
+                                '${AppRoutes.orderDetail}/${item.orderId}',
+                              );
+                            }
+                          },
                           onDismissed: () => notifier.remove(item.id),
                         );
                       },

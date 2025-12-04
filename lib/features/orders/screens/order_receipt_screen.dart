@@ -1,18 +1,19 @@
+import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../shared/services/email_service.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../customers/controllers/customers_controller.dart';
@@ -31,84 +32,6 @@ class OrderReceiptScreen extends ConsumerStatefulWidget {
 
 class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
   final GlobalKey _receiptKey = GlobalKey();
-  bool _emailSent = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Send email automatically when receipt screen loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _sendReceiptEmail();
-    });
-  }
-
-  Future<void> _sendReceiptEmail() async {
-    if (_emailSent) return;
-
-    final ordersAsync = ref.read(ordersProvider);
-    final orders = ordersAsync.value ?? [];
-    final order = orders.where((item) => item.id == widget.orderId).firstOrNull;
-
-    if (order == null) return;
-
-    final customersAsync = ref.read(customersProvider);
-    final customers = customersAsync.value ?? [];
-    final customer = customers
-        .where((c) => c.id == order.customerId)
-        .firstOrNull;
-    final customerEmail = customer?.email;
-
-    if (customerEmail == null || customerEmail.isEmpty) return;
-
-    // Prepare order items data
-    final orderItems = order.items.map((item) {
-      return {
-        'orderType': item.orderType,
-        'quantity': item.quantity,
-        'unitPrice': item.unitPrice,
-        'lineTotal': item.lineTotal,
-      };
-    }).toList();
-
-    // Get profile data for email
-    final profileAsync = ref.read(profileProvider);
-    final profile = profileAsync.value;
-
-    // Send email
-    final emailSent = await EmailService.sendReceiptEmail(
-      recipientEmail: customerEmail,
-      customerName: order.customerName,
-      orderId: order.id,
-      orderItems: orderItems,
-      subtotal: order.subtotal,
-      advanceAmount: order.advanceAmount,
-      remainingAmount: order.remainingAmount,
-      deliveryDate: order.deliveryDate,
-      notes: order.notes,
-      shopName: profile?.shopName,
-      tailorName: profile?.name,
-      phone: profile?.phone,
-    );
-
-    if (mounted) {
-      setState(() {
-        _emailSent = true;
-      });
-
-      if (emailSent) {
-        SnackbarService.showSuccess(
-          context,
-          message: 'Receipt sent to $customerEmail',
-        );
-      } else if (EmailService.isConfigured) {
-        SnackbarService.showError(
-          context,
-          message: 'Failed to send email. Please check configuration.',
-        );
-      }
-      // If not configured, silently skip (no error shown)
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +43,7 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
     final profileAsync = ref.watch(profileProvider);
     final profile = profileAsync.value;
 
-    // Get customer email for future email sending
+    // Get customer email for sharing
     String? customerEmail;
     if (order != null) {
       final customersAsync = ref.watch(customersProvider);
@@ -344,40 +267,6 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      // Email sending status
-                      if (customerEmail != null &&
-                          customerEmail.isNotEmpty) ...[
-                        const SizedBox(height: AppSizes.md),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _emailSent
-                                  ? Icons.check_circle
-                                  : Icons.email_outlined,
-                              size: 16,
-                              color: _emailSent ? Colors.green : Colors.grey,
-                            ),
-                            const SizedBox(width: AppSizes.xs),
-                            Flexible(
-                              child: Text(
-                                _emailSent
-                                    ? 'Receipt sent to: $customerEmail'
-                                    : 'Sending receipt to: $customerEmail',
-                                style: AppTextStyles.caption.copyWith(
-                                  fontStyle: FontStyle.italic,
-                                  color: _emailSent
-                                      ? Colors.green
-                                      : Colors.grey,
-                                ),
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -411,58 +300,159 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
     );
   }
 
+  /// Convert RepaintBoundary to image bytes
+  Future<Uint8List> _convertReceiptToImageBytes() async {
+    final RenderRepaintBoundary boundary =
+        _receiptKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+    final ByteData? byteData = await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
+    return byteData!.buffer.asUint8List();
+  }
+
+  /// Save receipt image to device gallery
   Future<void> _downloadReceipt(BuildContext context) async {
     try {
-      final RenderRepaintBoundary boundary =
-          _receiptKey.currentContext!.findRenderObject()
-              as RenderRepaintBoundary;
-      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      final ByteData? byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-      final Uint8List pngBytes = byteData!.buffer.asUint8List();
+      // Request storage permission if needed
+      bool hasPermission = await _requestStoragePermission();
+      if (!hasPermission) {
+        if (context.mounted) {
+          SnackbarService.showError(
+            context,
+            message: 'Storage permission is required to save receipt',
+          );
+        }
+        return;
+      }
 
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File(
-        '${directory.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.png',
-      );
-      await file.writeAsBytes(pngBytes);
+      final pngBytes = await _convertReceiptToImageBytes();
 
-      if (context.mounted) {
-        SnackbarService.showSuccess(
-          context,
-          message: 'Receipt saved to ${file.path}',
-        );
+      // Save using native method channel which handles all Android versions
+      const platform = MethodChannel('com.abdulrahman.tailorx_app/gallery');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'receipt_$timestamp.png';
+
+      try {
+        final result = await platform.invokeMethod('saveImageToGallery', {
+          'imageBytes': pngBytes,
+          'fileName': fileName,
+        });
+
+        if (result == true && context.mounted) {
+          SnackbarService.showSuccess(
+            context,
+            message: 'Receipt saved to gallery',
+          );
+        } else if (context.mounted) {
+          SnackbarService.showError(
+            context,
+            message: 'Failed to save receipt to gallery',
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          SnackbarService.showError(
+            context,
+            message: 'Error saving receipt: $e',
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
-        SnackbarService.showError(context, message: 'Error: $e');
+        SnackbarService.showError(context, message: 'Error saving receipt: $e');
       }
     }
   }
 
+  /// Request storage permission based on Android version
+  Future<bool> _requestStoragePermission() async {
+    if (Platform.isAndroid) {
+      // For Android 13+ (API 33+), request READ_MEDIA_IMAGES
+      // For Android 10-12 (API 29-32), no permission needed for scoped storage
+      // For Android 9 and below, request WRITE_EXTERNAL_STORAGE
+      final androidInfo = await _getAndroidVersion();
+      if (androidInfo != null && androidInfo >= 33) {
+        // Android 13+: Use photos permission
+        final status = await Permission.photos.status;
+        if (!status.isGranted) {
+          final result = await Permission.photos.request();
+          return result.isGranted;
+        }
+        return true;
+      } else if (androidInfo != null && androidInfo < 29) {
+        // Android 9 and below: Use storage permission
+        final status = await Permission.storage.status;
+        if (!status.isGranted) {
+          final result = await Permission.storage.request();
+          return result.isGranted;
+        }
+        return true;
+      }
+      // Android 10-12: No permission needed for scoped storage when using MediaStore
+      return true;
+    }
+    return true;
+  }
+
+  /// Get Android SDK version
+  Future<int?> _getAndroidVersion() async {
+    try {
+      const platform = MethodChannel('com.abdulrahman.tailorx_app/gallery');
+      final version = await platform.invokeMethod('getAndroidVersion');
+      return version as int?;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Convert image bytes to base64 string
+  ///
+  /// This function is available for converting receipt images to base64 format.
+  /// Useful for embedding images in email HTML or other text-based sharing methods.
+  /// For file-based sharing (WhatsApp, etc.), use Share.shareXFiles() with the file directly.
+  // ignore: unused_element
+  String _imageBytesToBase64(Uint8List bytes) {
+    return base64Encode(bytes);
+  }
+
+  /// Share receipt via WhatsApp, Email, or other apps
+  ///
+  /// Converts the receipt to an image and shares it.
+  /// The image can be converted to base64 using _imageBytesToBase64() if needed.
   Future<void> _shareToWhatsApp(
     BuildContext context,
     OrderModel order,
     String? customerEmail,
   ) async {
-    // Get profile data for share message
-    final profileAsync = ref.read(profileProvider);
-    final profile = profileAsync.value;
-    final shopName = (profile != null && profile.shopName.isNotEmpty)
-        ? profile.shopName
-        : 'TailorX';
-    final tailorName = (profile != null && profile.name.isNotEmpty)
-        ? profile.name
-        : '';
-    final phone = (profile != null && profile.phone.isNotEmpty)
-        ? profile.phone
-        : '';
+    try {
+      // Convert receipt to image bytes
+      final pngBytes = await _convertReceiptToImageBytes();
 
-    final orderTypes = order.items.map((item) => item.orderType).join(', ');
+      // Save to temporary file for sharing
+      final directory = await getTemporaryDirectory();
+      final file = File(
+        '${directory.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(pngBytes);
 
-    final message =
-        '''
+      // Get profile data for share message
+      final profileAsync = ref.read(profileProvider);
+      final profile = profileAsync.value;
+      final shopName = (profile != null && profile.shopName.isNotEmpty)
+          ? profile.shopName
+          : 'TailorX';
+      final tailorName = (profile != null && profile.name.isNotEmpty)
+          ? profile.name
+          : '';
+      final phone = (profile != null && profile.phone.isNotEmpty)
+          ? profile.phone
+          : '';
+
+      final orderTypes = order.items.map((item) => item.orderType).join(', ');
+
+      final message =
+          '''
 *$shopName Order Receipt*
 ${tailorName.isNotEmpty ? 'Tailor: $tailorName\n' : ''}${phone.isNotEmpty ? 'Phone: $phone\n' : ''}
 Customer: ${order.customerName}
@@ -479,20 +469,21 @@ Balance: \$${order.remainingAmount.toStringAsFixed(0)}
 Thank you for choosing our tailoring services.
 ''';
 
-    await Share.share(message);
-
-    // Placeholder for future email sending
-    // TODO: Implement email sending functionality
-    // if (customerEmail != null && customerEmail.isNotEmpty) {
-    //   await _sendReceiptEmail(order, customerEmail);
-    // }
+      // Share the image file along with the message
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: message,
+        subject: '$shopName Order Receipt - ${order.id}',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        SnackbarService.showError(
+          context,
+          message: 'Error sharing receipt: $e',
+        );
+      }
+    }
   }
-
-  // Placeholder method for future email sending
-  // Future<void> _sendReceiptEmail(OrderModel order, String email) async {
-  //   // TODO: Implement email sending logic
-  //   // This will be implemented when email service is integrated
-  // }
 }
 
 class _ReceiptRow extends StatelessWidget {

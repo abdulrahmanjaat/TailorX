@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -23,13 +24,13 @@ class LocationService {
         // Check the result
         if (status.isDenied) {
           // User denied the permission
-          print('Location permission denied by user');
+          debugPrint('Location permission denied by user');
           return false;
         }
 
         if (status.isPermanentlyDenied) {
           // Permission is permanently denied - user needs to enable in settings
-          print('Location permission permanently denied');
+          debugPrint('Location permission permanently denied');
           return false;
         }
       }
@@ -38,7 +39,7 @@ class LocationService {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         // Location services are disabled - permission dialog won't help
-        print('Location services are disabled');
+        debugPrint('Location services are disabled');
         return false;
       }
 
@@ -49,20 +50,20 @@ class LocationService {
         // Request permission via Geolocator as well (for Android compatibility)
         geolocatorPermission = await Geolocator.requestPermission();
         if (geolocatorPermission == LocationPermission.denied) {
-          print('Geolocator permission denied');
+          debugPrint('Geolocator permission denied');
           return false;
         }
       }
 
       if (geolocatorPermission == LocationPermission.deniedForever) {
-        print('Geolocator permission denied forever');
+        debugPrint('Geolocator permission denied forever');
         return false;
       }
 
       // Permission is granted
       return true;
     } catch (e) {
-      print('Permission request error: $e');
+      debugPrint('Permission request error: $e');
       return false;
     }
   }
@@ -78,8 +79,10 @@ class LocationService {
 
       // Get current position
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy:
-            LocationAccuracy.low, // Use low accuracy for faster response
+        locationSettings: const LocationSettings(
+          accuracy:
+              LocationAccuracy.low, // Use low accuracy for faster response
+        ),
       );
 
       // Get placemarks from coordinates
@@ -97,7 +100,7 @@ class LocationService {
       return null;
     } catch (e) {
       // Handle errors silently - return null if location cannot be determined
-      print('Location error: $e');
+      debugPrint('Location error: $e');
       return null;
     }
   }

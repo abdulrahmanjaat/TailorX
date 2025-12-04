@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/services/session_service.dart';
 
@@ -70,7 +71,7 @@ class AuthRepository {
           }, SetOptions(merge: true));
         } catch (e) {
           // Log error but don't fail signup if Firestore save fails
-          print('Error saving profile to Firestore: $e');
+          debugPrint('Error saving profile to Firestore: $e');
         }
       }
 
@@ -147,7 +148,7 @@ class AuthRepository {
           }
         } catch (e) {
           // Log error but don't fail login if Firestore fetch fails
-          print('Error fetching profile from Firestore: $e');
+          debugPrint('Error fetching profile from Firestore: $e');
         }
       }
 

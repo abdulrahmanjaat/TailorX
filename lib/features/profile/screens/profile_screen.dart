@@ -209,10 +209,10 @@ class _ProfileHeader extends StatelessWidget {
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  backgroundImage: profile.imageUrl != null
-                      ? NetworkImage(profile.imageUrl!)
+                  backgroundImage: profile.profileImagePath != null
+                      ? FileImage(File(profile.profileImagePath!))
                       : null,
-                  child: profile.imageUrl == null
+                  child: profile.profileImagePath == null
                       ? const Icon(
                           Icons.person,
                           size: 48,

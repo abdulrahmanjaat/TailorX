@@ -18,8 +18,8 @@ void main() async {
   } catch (e) {
     // If Firebase is not configured, the app will show an error
     // Run: flutterfire configure --project=tailorx-jaat001 --android --web
-    print('Firebase initialization error: $e');
-    print(
+    debugPrint('Firebase initialization error: $e');
+    debugPrint(
       'Please run: flutterfire configure --project=tailorx-jaat001 --android --web',
     );
   }
