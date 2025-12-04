@@ -16,10 +16,10 @@ class SplashController extends StateNotifier<SplashState> {
   }
 
   Future<void> _load() async {
-    // Wait for splash screen animation
+    // Wait for splash screen animation (3.5 seconds)
     // Note: Location permission is now requested from the splash screen widget
     // to ensure it has proper UI context
-    await Future<void>.delayed(const Duration(seconds: 3));
+    await Future<void>.delayed(const Duration(milliseconds: 5000));
     state = state.copyWith(isReady: true);
   }
 }

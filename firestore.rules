@@ -38,6 +38,13 @@ service cloud.firestore {
       match /measurements/{measurementId} {
         allow read, write: if isOwner(userId);
       }
+      
+      // Notifications subcollection - users can only access their own notifications
+      // Path: users/{userId}/notifications/{notificationId}
+      // IMPORTANT: All notification data is isolated per user. No cross-user access.
+      match /notifications/{notificationId} {
+        allow read, write: if isOwner(userId);
+      }
     }
     
     // NOTE: All data must be under users/{userId}/... path structure.

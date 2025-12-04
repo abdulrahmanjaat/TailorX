@@ -3,14 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/measurement_model.dart';
 import '../repositories/measurements_firestore_repository.dart';
 import '../services/measurements_service.dart';
+import '../../notifications/providers/notifications_providers.dart';
+import '../../notifications/services/notification_service.dart';
 
 class MeasurementsController
     extends StateNotifier<AsyncValue<List<MeasurementModel>>> {
-  MeasurementsController(this._repository) : super(const AsyncValue.loading()) {
+  MeasurementsController(
+    this._repository,
+    this._notificationService,
+  ) : super(const AsyncValue.loading()) {
     _loadMeasurements();
   }
 
   final MeasurementsFirestoreRepository _repository;
+  final NotificationService? _notificationService;
 
   Future<void> _loadMeasurements() async {
     try {
@@ -25,6 +31,12 @@ class MeasurementsController
     try {
       await _repository.addMeasurement(measurement);
       await _loadMeasurements(); // Reload to get updated list
+      
+      // Trigger notification
+      _notificationService?.notifyMeasurementSaved(
+        measurement.customerName,
+        measurement.orderType,
+      );
     } catch (e) {
       rethrow;
     }
@@ -76,5 +88,6 @@ final measurementsProvider =
     >(
       (ref) => MeasurementsController(
         ref.read(measurementsFirestoreRepositoryProvider),
+        ref.read(notificationServiceProvider),
       ),
     );

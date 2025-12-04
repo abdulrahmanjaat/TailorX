@@ -3,13 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/order_model.dart';
 import '../repositories/orders_firestore_repository.dart';
 import '../services/orders_service.dart';
+import '../../notifications/providers/notifications_providers.dart';
+import '../../notifications/services/notification_service.dart';
 
 class OrdersController extends StateNotifier<AsyncValue<List<OrderModel>>> {
-  OrdersController(this._repository) : super(const AsyncValue.loading()) {
+  OrdersController(
+    this._repository,
+    this._notificationService,
+  ) : super(const AsyncValue.loading()) {
     _loadOrders();
   }
 
   final OrdersFirestoreRepository _repository;
+  final NotificationService? _notificationService;
 
   Future<void> _loadOrders() async {
     try {
@@ -24,6 +30,9 @@ class OrdersController extends StateNotifier<AsyncValue<List<OrderModel>>> {
     try {
       await _repository.addOrder(order);
       await _loadOrders(); // Reload to get updated list
+      
+      // Trigger notification
+      _notificationService?.notifyOrderCreated(order.id, order.customerName);
     } catch (e) {
       rethrow;
     }
@@ -49,8 +58,22 @@ class OrdersController extends StateNotifier<AsyncValue<List<OrderModel>>> {
 
   Future<void> updateStatus(String id, OrderStatus status) async {
     try {
+      // Get old status before update
+      final oldOrder = state.value?.firstWhere((o) => o.id == id);
+      final oldStatus = oldOrder?.status.label ?? '';
+      
       await _repository.updateOrderStatus(id, status);
       await _loadOrders(); // Reload to get updated list
+      
+      // Trigger notification for status change
+      if (oldOrder != null) {
+        _notificationService?.notifyOrderStatusUpdated(
+          id,
+          oldOrder.customerName,
+          oldStatus,
+          status.label,
+        );
+      }
     } catch (e) {
       rethrow;
     }
@@ -59,5 +82,8 @@ class OrdersController extends StateNotifier<AsyncValue<List<OrderModel>>> {
 
 final ordersProvider =
     StateNotifierProvider<OrdersController, AsyncValue<List<OrderModel>>>(
-      (ref) => OrdersController(ref.read(ordersFirestoreRepositoryProvider)),
+      (ref) => OrdersController(
+        ref.read(ordersFirestoreRepositoryProvider),
+        ref.read(notificationServiceProvider),
+      ),
     );

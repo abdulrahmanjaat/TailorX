@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/services/local_image_storage_service.dart';
 import '../../../shared/services/secure_storage_service.dart';
 import '../models/profile_model.dart';
 import '../repositories/profile_firestore_repository.dart';
@@ -31,9 +33,15 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileModel>> {
       // First try to load from Firestore (primary source)
       final profile = await _repository.getProfile();
       if (profile != null) {
+        // Load local profile image path if it exists
+        final localImagePath = await LocalImageStorageService.instance
+            .loadProfileImagePath();
+        final profileWithLocalImage = localImagePath != null
+            ? profile.copyWith(profileImagePath: localImagePath)
+            : profile;
         // Save to local storage for offline access
-        await _saveToLocalStorage(profile);
-        state = AsyncValue.data(profile);
+        await _saveToLocalStorage(profileWithLocalImage);
+        state = AsyncValue.data(profileWithLocalImage);
         return;
       }
 
@@ -42,10 +50,16 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileModel>> {
       if (profileJson != null) {
         final Map<String, dynamic> json = jsonDecode(profileJson);
         final localProfile = ProfileModel.fromJson(json);
-        state = AsyncValue.data(localProfile);
+        // Load local profile image path if it exists
+        final localImagePath = await LocalImageStorageService.instance
+            .loadProfileImagePath();
+        final profileWithLocalImage = localImagePath != null
+            ? localProfile.copyWith(profileImagePath: localImagePath)
+            : localProfile;
+        state = AsyncValue.data(profileWithLocalImage);
         // Try to save to Firestore if it doesn't exist
         try {
-          await _repository.saveProfile(localProfile);
+          await _repository.saveProfile(profileWithLocalImage);
         } catch (_) {
           // Ignore Firestore errors, use local data
         }
@@ -79,7 +93,14 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileModel>> {
         final profileJson = await _storage.read(_storageKey);
         if (profileJson != null) {
           final Map<String, dynamic> json = jsonDecode(profileJson);
-          state = AsyncValue.data(ProfileModel.fromJson(json));
+          final localProfile = ProfileModel.fromJson(json);
+          // Load local profile image path if it exists
+          final localImagePath = await LocalImageStorageService.instance
+              .loadProfileImagePath();
+          final profileWithLocalImage = localImagePath != null
+              ? localProfile.copyWith(profileImagePath: localImagePath)
+              : localProfile;
+          state = AsyncValue.data(profileWithLocalImage);
           return;
         }
       } catch (_) {
@@ -104,13 +125,42 @@ class ProfileController extends StateNotifier<AsyncValue<ProfileModel>> {
     }
   }
 
-  Future<void> updateProfile(ProfileModel profile) async {
+  /// Update profile with optional image file
+  ///
+  /// If [imageFile] is provided, it will be saved locally to the device
+  /// and the local file path will be stored in the profile.
+  /// If [imageFile] is null, the existing profileImagePath will be preserved.
+  Future<void> updateProfile(ProfileModel profile, {File? imageFile}) async {
     try {
+      ProfileModel profileToSave = profile;
+
+      // If a new image file is provided, save it locally
+      if (imageFile != null) {
+        try {
+          final imagePath = await LocalImageStorageService.instance
+              .saveProfileImage(imageFile);
+          // Update profile with the local image path
+          // Store in profileImagePath field (we'll use this instead of imageUrl)
+          profileToSave = profile.copyWith(profileImagePath: imagePath);
+        } catch (e) {
+          // If save fails, throw error but don't update profile
+          throw Exception('Failed to save image: $e');
+        }
+      } else {
+        // If no new image, preserve existing profileImagePath from current state
+        final currentProfile = state.value;
+        if (currentProfile != null && currentProfile.profileImagePath != null) {
+          profileToSave = profile.copyWith(
+            profileImagePath: currentProfile.profileImagePath,
+          );
+        }
+      }
+
       // Save to Firestore first (primary source)
-      await _repository.saveProfile(profile);
+      await _repository.saveProfile(profileToSave);
       // Save to local storage for offline access
-      await _saveToLocalStorage(profile);
-      state = AsyncValue.data(profile);
+      await _saveToLocalStorage(profileToSave);
+      state = AsyncValue.data(profileToSave);
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
       rethrow;

@@ -3,14 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/customer_model.dart';
 import '../repositories/customers_firestore_repository.dart';
 import '../services/customers_service.dart';
+import '../../notifications/providers/notifications_providers.dart';
+import '../../notifications/services/notification_service.dart';
 
 class CustomersController
     extends StateNotifier<AsyncValue<List<CustomerModel>>> {
-  CustomersController(this._repository) : super(const AsyncValue.loading()) {
+  CustomersController(
+    this._repository,
+    this._notificationService,
+  ) : super(const AsyncValue.loading()) {
     _loadCustomers();
   }
 
   final CustomersFirestoreRepository _repository;
+  final NotificationService? _notificationService;
 
   Future<void> _loadCustomers() async {
     try {
@@ -25,6 +31,9 @@ class CustomersController
     try {
       await _repository.addCustomer(customer);
       await _loadCustomers(); // Reload to get updated list
+      
+      // Trigger notification
+      _notificationService?.notifyCustomerAdded(customer.name);
     } catch (e) {
       rethrow;
     }
@@ -71,6 +80,8 @@ class CustomersController
 
 final customersProvider =
     StateNotifierProvider<CustomersController, AsyncValue<List<CustomerModel>>>(
-      (ref) =>
-          CustomersController(ref.read(customersFirestoreRepositoryProvider)),
+      (ref) => CustomersController(
+        ref.read(customersFirestoreRepositoryProvider),
+        ref.read(notificationServiceProvider),
+      ),
     );

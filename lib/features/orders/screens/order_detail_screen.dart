@@ -252,7 +252,7 @@ class OrderDetailScreen extends ConsumerWidget {
               child: AppButton(
                 label: 'Edit Order',
                 onPressed: () =>
-                    context.push('${AppRoutes.editOrder}/${orderId}'),
+                    context.push('${AppRoutes.editOrder}/$orderId'),
                 type: AppButtonType.secondary,
               ),
             ),

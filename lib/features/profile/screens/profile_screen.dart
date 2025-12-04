@@ -7,12 +7,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
-import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
-import '../../../shared/widgets/custom_card.dart';
 import '../../auth/services/auth_service.dart';
 import '../controllers/profile_controller.dart';
 import '../models/profile_model.dart';
@@ -26,7 +24,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _imagePicker = ImagePicker();
-  File? _profileImage;
+  bool _isUploadingImage = false;
 
   Future<void> _pickImage() async {
     try {
@@ -37,11 +35,71 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         imageQuality: 85,
       );
       if (image != null) {
-        setState(() => _profileImage = File(image.path));
+        setState(() => _isUploadingImage = true);
+
+        final imageFile = File(image.path);
+        final currentProfile = ref.read(profileProvider).value;
+
+        if (currentProfile == null) {
+          if (mounted) {
+            SnackbarService.showError(
+              context,
+              message: 'Profile not loaded. Please try again.',
+            );
+          }
+          return;
+        }
+
+        try {
+          // Upload image and update profile
+          await ref
+              .read(profileProvider.notifier)
+              .updateProfile(currentProfile, imageFile: imageFile);
+
+          if (mounted) {
+            SnackbarService.showSuccess(
+              context,
+              message: 'Profile image updated successfully',
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            SnackbarService.showError(
+              context,
+              message: 'Failed to upload image: $e',
+            );
+          }
+        } finally {
+          if (mounted) {
+            setState(() => _isUploadingImage = false);
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
         SnackbarService.showError(context, message: 'Error picking image: $e');
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      await authRepository.signOut();
+      if (mounted) {
+        SnackbarService.showSuccess(
+          context,
+          message: 'Logged out successfully',
+        );
+        context.go(AppRoutes.onboarding);
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarService.showError(
+          context,
+          message: 'Error logging out: ${e.toString()}',
+        );
       }
     }
   }
@@ -49,34 +107,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'Profile',
-      padding: const EdgeInsets.all(AppSizes.lg),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.logout),
-          tooltip: 'Logout',
-          onPressed: () async {
-            try {
-              final authRepository = ref.read(authRepositoryProvider);
-              await authRepository.signOut();
-              if (mounted) {
-                SnackbarService.showSuccess(
-                  context,
-                  message: 'Logged out successfully',
-                );
-                context.go(AppRoutes.onboarding);
-              }
-            } catch (e) {
-              if (mounted) {
-                SnackbarService.showError(
-                  context,
-                  message: 'Error logging out: ${e.toString()}',
-                );
-              }
-            }
-          },
-        ),
-      ],
+      title: 'My Profile',
+      padding: EdgeInsets.only(top: 10),
       body: ref
           .watch(profileProvider)
           .when(
@@ -85,23 +117,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 _ProfileHeader(
                   profile: profile,
-                  profileImage: _profileImage,
+                  isUploading: _isUploadingImage,
                   onCameraTap: _pickImage,
                 ),
-                const SizedBox(height: AppSizes.lg),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: _ProfileDetails(profile: profile),
-                  ),
+                const SizedBox(height: AppSizes.sm),
+                _AccountSection(
+                  title: 'Account',
+                  items: [
+                    _ProfileMenuItem(
+                      icon: Icons.settings,
+                      title: 'Settings',
+                      onTap: () => context.push(AppRoutes.settings),
+                    ),
+                    _ProfileMenuItem(
+                      icon: Icons.notifications,
+                      title: 'Notification',
+                      onTap: () => context.push(AppRoutes.notifications),
+                    ),
+                    _ProfileMenuItem(
+                      icon: Icons.history,
+                      title: 'Order History',
+                      onTap: () => context.push(AppRoutes.ordersList),
+                    ),
+                    _ProfileMenuItem(
+                      icon: Icons.privacy_tip,
+                      title: 'Privacy & Policy',
+                      onTap: () => context.push(AppRoutes.termsPrivacy),
+                    ),
+                    _ProfileMenuItem(
+                      icon: Icons.description,
+                      title: 'Terms & Conditions',
+                      onTap: () => context.push(AppRoutes.termsPrivacy),
+                    ),
+                    _ProfileMenuItem(
+                      icon: Icons.logout,
+                      title: 'Log Out',
+                      onTap: _handleLogout,
+                      isDestructive: true,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSizes.lg),
-                Center(
-                  child: AppButton(
-                    label: 'Edit Profile',
-                    onPressed: () => context.push(AppRoutes.settings),
-                  ),
-                ),
-                const SizedBox(height: AppSizes.md),
               ],
             ),
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -111,10 +166,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Text('Error loading profile: $error'),
                   const SizedBox(height: AppSizes.md),
-                  AppButton(
-                    label: 'Retry',
+                  ElevatedButton(
                     onPressed: () =>
                         ref.read(profileProvider.notifier).refreshProfile(),
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
@@ -127,115 +182,197 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.profile,
-    required this.profileImage,
+    required this.isUploading,
     required this.onCameraTap,
   });
 
   final ProfileModel profile;
-  final File? profileImage;
+  final bool isUploading;
   final VoidCallback onCameraTap;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                backgroundImage: profileImage != null
-                    ? FileImage(profileImage!)
-                    : null,
-                child: profileImage == null
-                    ? const Icon(
-                        Icons.person,
-                        size: 48,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.lg,
+          vertical: AppSizes.sm,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  backgroundImage: profile.profileImagePath != null
+                      ? FileImage(File(profile.profileImagePath!))
+                      : null,
+                  child: profile.profileImagePath == null
+                      ? const Icon(
+                          Icons.person,
+                          size: 48,
+                          color: AppColors.primary,
+                        )
+                      : isUploading
+                      ? const CircularProgressIndicator(
+                          color: AppColors.primary,
+                        )
+                      : null,
+                ),
+                // Camera icon for picking image
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: isUploading ? null : onCameraTap,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
                         color: AppColors.primary,
-                      )
-                    : null,
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: onCameraTap,
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: AppColors.primary,
-                    child: const Icon(
-                      Icons.camera_alt,
-                      color: AppColors.background,
-                      size: 16,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.background,
+                          width: 2,
+                        ),
+                      ),
+                      child: isUploading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.background,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt,
+                              color: AppColors.background,
+                              size: 18,
+                            ),
                     ),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.md),
+            Text(
+              profile.name.isNotEmpty ? profile.name : 'Your Name',
+              style: AppTextStyles.titleLarge.copyWith(
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.md),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSizes.xs),
+            Text(
+              profile.email.isNotEmpty ? profile.email : 'abc@gmail.com',
+              style: AppTextStyles.bodyRegular.copyWith(
+                color: AppColors.dark.withValues(alpha: 0.6),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountSection extends StatelessWidget {
+  const _AccountSection({required this.title, required this.items});
+
+  final String title;
+  final List<_ProfileMenuItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
           Text(
-            profile.name.isNotEmpty ? profile.name : 'User',
-            style: AppTextStyles.titleLarge,
+            title,
+            style: AppTextStyles.titleLarge.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          const SizedBox(height: AppSizes.xs),
-          Text(
-            profile.shopName.isNotEmpty ? '${profile.shopName}' : 'TailorX',
-            style: AppTextStyles.caption,
-          ),
+          const SizedBox(height: AppSizes.sm),
+          ...items,
         ],
       ),
     );
   }
 }
 
-class _ProfileDetails extends StatelessWidget {
-  const _ProfileDetails({required this.profile});
+class _ProfileMenuItem extends StatelessWidget {
+  const _ProfileMenuItem({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.isDestructive = false,
+  });
 
-  final ProfileModel profile;
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+  final bool isDestructive;
 
   @override
   Widget build(BuildContext context) {
-    final info = [
-      ('Owner Name', profile.name.isNotEmpty ? profile.name : 'Not set'),
-      (
-        'Studio Name',
-        profile.shopName.isNotEmpty ? profile.shopName : 'Not set',
-      ),
-      ('Email', profile.email.isNotEmpty ? profile.email : 'Not set'),
-      ('Phone', profile.phone.isNotEmpty ? profile.phone : 'Not set'),
-    ];
-
-    return CustomCard(
-      padding: const EdgeInsets.all(AppSizes.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: info
-            .map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSizes.md),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 110,
-                      child: Text(
-                        item.$1,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.dark.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(item.$2, style: AppTextStyles.bodyLarge),
-                    ),
-                  ],
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.md),
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.md,
+              vertical: AppSizes.md,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                width: 1,
               ),
-            )
-            .toList(),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isDestructive ? AppColors.error : AppColors.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: AppSizes.md),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      color: isDestructive ? AppColors.error : AppColors.dark,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: AppColors.dark.withValues(alpha: 0.4),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

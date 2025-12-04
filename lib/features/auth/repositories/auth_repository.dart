@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../../../shared/services/secure_storage_service.dart';
+import '../../../shared/services/session_service.dart';
 
 class AuthRepository {
   AuthRepository({
@@ -69,7 +71,7 @@ class AuthRepository {
           }, SetOptions(merge: true));
         } catch (e) {
           // Log error but don't fail signup if Firestore save fails
-          print('Error saving profile to Firestore: $e');
+          debugPrint('Error saving profile to Firestore: $e');
         }
       }
 
@@ -121,6 +123,8 @@ class AuthRepository {
         await secureStorage.setUserEmail(userCredential.user!.email ?? email);
         // Mark onboarding as seen after login
         await secureStorage.setHasSeenOnboarding(true);
+        // Start new session (for first fitting time tracking)
+        await SessionService.instance.startSession();
 
         // Fetch and sync profile from Firestore after login
         try {
@@ -144,7 +148,7 @@ class AuthRepository {
           }
         } catch (e) {
           // Log error but don't fail login if Firestore fetch fails
-          print('Error fetching profile from Firestore: $e');
+          debugPrint('Error fetching profile from Firestore: $e');
         }
       }
 
@@ -172,6 +176,8 @@ class AuthRepository {
       await secureStorage.clearAuthData();
       // Reset onboarding flag so it shows again after logout
       await secureStorage.setHasSeenOnboarding(false);
+      // Clear session data (first fitting time, etc.)
+      await SessionService.instance.clearSession();
     } catch (e) {
       throw Exception('Error signing out: $e');
     }

@@ -349,6 +349,10 @@ All business logic lives inside feature-specific `controllers/` (StateNotifiers)
 - **Services**:
   - `SnackbarService`: Unified notification system with `showSuccess()`, `showError()`, and `showInfo()` methods for consistent user feedback
   - `SecureStorageService`: Secure local storage for user profiles and sensitive data
+  - `StorageService`: Firebase Storage service for uploading profile images
+  - `PhoneService`: Service for making calls, sending SMS, and opening WhatsApp
+  - `SessionService`: Session management for tracking app session data
+  - `EmailService`: Email sending functionality for receipts
   - `ToastService`: Top banner notifications for important messages
 - **Interaction Patterns**: Glassmorphism, subtle blurs, elevated surfaces, pronounced shadow tokens, and smooth animations to maintain a premium aesthetic
 
@@ -369,11 +373,13 @@ All business logic lives inside feature-specific `controllers/` (StateNotifiers)
 - `firebase_core`: Firebase initialization
 - `firebase_auth`: User authentication
 - `cloud_firestore`: Cloud Firestore database
+- `firebase_storage`: Firebase Storage for profile image uploads
 - `flutter_secure_storage`: Secure local storage for sensitive data
 - `share_plus`: Share functionality for receipts
 - `path_provider`: File system access for receipt downloads
 - `image_picker`: Profile image selection
 - `intl_phone_field`: International phone number input
+- `url_launcher`: Phone calls, SMS, and WhatsApp integration
 - Additional packages as defined in `pubspec.yaml`
 
 ---
@@ -409,10 +415,15 @@ tailorx_app/
 │   │   │   ├── screens/      # OrdersListScreen, AddOrderScreen, OrderDetailScreen, OrderReceiptScreen
 │   │   │   └── widgets/      # OrderCard, OrderStatusBadge, OrderAmountSection, OrderDetailTile
 │   │   ├── profile/          # User profile
+│   │   │   ├── controllers/  # ProfileController
+│   │   │   ├── models/       # ProfileModel
+│   │   │   ├── repositories/ # ProfileFirestoreRepository
+│   │   │   ├── screens/      # ProfileScreen, EditProfileScreen
+│   │   │   └── services/    # ProfileService
 │   │   ├── settings/         # App settings
 │   │   └── splash/           # Splash screen
 │   ├── shared/
-│   │   ├── services/         # SnackbarService, SecureStorageService, ToastService, EmailService
+│   │   ├── services/         # SnackbarService, SecureStorageService, StorageService, PhoneService, SessionService, EmailService, ToastService
 │   │   └── widgets/          # AppScaffold, CustomCard, AuroraBackground
 │   └── main.dart             # App entry point
 ├── assets/
@@ -444,6 +455,7 @@ This app uses Firebase for authentication and Firestore for data storage. Follow
    - Create a new project or use an existing one
    - Enable Authentication (Email/Password)
    - Enable Cloud Firestore
+   - Enable Firebase Storage (required for profile images)
 
 2. **Configure Android**
    - Download `google-services.json` from Firebase Console
@@ -454,16 +466,31 @@ This app uses Firebase for authentication and Firestore for data storage. Follow
    - Firebase web configuration is handled automatically via `firebase_options.dart`
    - Generated using `flutterfire configure`
 
-4. **Deploy Firestore Rules**
+4. **Enable Firebase Storage**
+   - Go to [Firebase Storage Console](https://console.firebase.google.com/project/tailorx-jaat001/storage)
+   - Click "Get Started" to initialize Firebase Storage
+   - Choose a storage location (preferably same region as Firestore)
+   - Start in test mode (rules will be deployed separately)
+
+5. **Deploy Firestore Rules**
    ```bash
    firebase deploy --only firestore:rules
    ```
    - This deploys the security rules from `firestore.rules`
    - Rules ensure users can only access their own data
 
-5. **Firebase Configuration Files**
-   - `firebase.json`: Firebase project configuration
+6. **Deploy Storage Rules**
+   ```bash
+   firebase deploy --only storage
+   ```
+   - This deploys the security rules from `storage.rules`
+   - Rules ensure users can only upload/read their own profile images
+   - **Note**: Storage must be enabled in Firebase Console before deploying rules
+
+7. **Firebase Configuration Files**
+   - `firebase.json`: Firebase project configuration (includes Firestore and Storage rules)
    - `firestore.rules`: Security rules for Firestore
+   - `storage.rules`: Security rules for Firebase Storage
    - `lib/firebase_options.dart`: Auto-generated Firebase options
    - `android/app/google-services.json`: Android Firebase config
 
@@ -560,14 +587,16 @@ flutter build web --release
 - **Customers**: Stored in Firestore at `users/{uid}/customers/{customerId}`
 - **Measurements**: Stored in Firestore at `users/{uid}/measurements/{measurementId}`
 - **Orders**: Stored in Firestore at `users/{uid}/orders/{orderId}`
-- **Profile**: Stored in Firestore at `users/{uid}`
+- **Profile**: Stored in Firestore at `users/{uid}` (includes `imageUrl` field)
+- **Profile Images**: Stored in Firebase Storage at `users/{uid}/profile/profile.jpg`
 
 **Data Isolation**: All data is scoped to the authenticated user's UID, ensuring complete multi-user isolation. Each user can only access their own data. See `FIRESTORE_DATA_ISOLATION.md` for detailed architecture documentation.
 
 **Data Persistence**: 
 - Data persists in Firestore across login sessions
+- Profile images persist in Firebase Storage across login sessions
 - Local secure storage is used for offline access and faster retrieval
-- On logout, only local storage is cleared; Firestore data remains intact
+- On logout, only local storage is cleared; Firestore data and Storage files remain intact
 
 ---
 
@@ -584,25 +613,143 @@ flutter build web --release
 - **Security Rules**: Enforced at database level to prevent cross-user data access
 - **Data Persistence**: Data remains in Firestore after logout (intentional for data retention)
 
+### Firebase Storage
+- **Profile Image Uploads**: Profile images are uploaded to `users/{uid}/profile/profile.jpg`
+- **Automatic URL Generation**: Download URLs are automatically generated after upload
+- **Real-Time Image Updates**: Profile images update in real-time across all screens
+- **Security Rules**: Users can only upload/read their own profile images
+- **File Size Limit**: Maximum 5MB per image
+- **Content Type Validation**: Only image files are allowed
+
 ### Data Architecture
 - **Customers**: `users/{uid}/customers/{customerId}`
 - **Orders**: `users/{uid}/orders/{orderId}`
 - **Measurements**: `users/{uid}/measurements/{measurementId}`
 - **Profile**: `users/{uid}` (document, not subcollection)
+- **Profile Images**: `users/{uid}/profile/profile.jpg` (Firebase Storage)
 
 ### Security
 - **Firestore Rules**: Enforce user isolation - users can only access their own data
-- **Authentication Required**: All Firestore operations require authenticated user
+- **Storage Rules**: Enforce user isolation for profile images - users can only upload/read their own images
+- **Authentication Required**: All Firestore and Storage operations require authenticated user
 - **UID-Based Access**: All queries use `FirebaseAuth.instance.currentUser.uid`
+- **File Size Limits**: Profile images limited to 5MB
+- **Content Type Validation**: Only image files allowed for profile uploads
 
 For detailed information, see:
 - `FIRESTORE_DATA_ISOLATION.md`: Complete data isolation architecture
 - `FIREBASE_AUTH_IMPLEMENTATION.md`: Authentication implementation details
 - `firestore.rules`: Security rules configuration
+- `storage.rules`: Storage security rules configuration
 
 ## 🎨 Recent Improvements
 
-### UI/UX Redesign & Gradient System (Latest Update)
+### Notification System Implementation (Latest Update)
+
+#### Complete Firestore-Based Notification System
+- **Real-Time Notifications**: Full notification system built on Firestore with real-time updates using streams
+- **Client-Side Only**: All notification logic runs on the client side (no Firebase Functions required)
+- **User-Scoped Data**: Notifications stored under `users/{uid}/notifications/{notificationId}` for complete data isolation
+
+#### Notification Types
+- **Customer Added**: Notifies when a new customer is added
+- **Measurement Saved**: Notifies when a measurement is saved
+- **Order Created**: Notifies when a new order is created
+- **Order Status Updated**: Notifies when order status changes to completed
+- **Fitting Date Assigned**: Notifies when a fitting date is assigned (ready for future use)
+- **Delivery Date Assigned**: Notifies when delivery date is assigned or updated
+
+#### Notification Features
+- **Real-Time Streams**: All notifications update in real-time using Firestore streams
+- **Unread Badge**: Home screen header shows unread notification count badge
+- **Notification List Screen**: Complete UI with tabs (All/Read/Unread), swipe to delete, and mark all as read
+- **Order Navigation**: Tapping notifications with orderId navigates to order detail screen
+- **Auto-Read**: Notifications marked as read when tapped
+
+#### Technical Implementation
+- **NotificationModel**: Complete model with id, title, message, type, orderId, createdAt, isRead
+- **NotificationsFirestoreRepository**: Repository with createNotification, streamAllNotifications, markAsRead, markAllAsRead, streamUnreadCount
+- **NotificationService**: Service layer for triggering notifications across the app
+- **Riverpod Providers**: notificationServiceProvider, notificationsStreamProvider, unreadCountProvider
+- **Firestore Rules**: Security rules added for notifications subcollection
+
+#### Integration Points
+- **CustomersController**: Triggers notification on customer add
+- **OrdersController**: Triggers notifications on order create and status update
+- **MeasurementsController**: Triggers notification on measurement save
+- **EditOrderScreen**: Triggers notification when delivery date changes
+
+### Home Screen Welcome Card Enhancement
+
+#### Improved Delivery Information Display
+- **Removed**: "First fitting started at [login time]" - removed session-based time display
+- **Added**: Next delivery date information with smart formatting:
+  - "Delivery due today" for today's deliveries
+  - "Delivery tomorrow" for next day deliveries
+  - "Delivery in X days" for upcoming deliveries (within 7 days)
+  - Date format for deliveries more than 7 days away
+  - "X days overdue" for overdue deliveries with warning icon
+- **Pending Orders Count**: Shows number of pending (non-completed) orders
+- **Dynamic Icons**: Icons change based on delivery status (warning for overdue, calendar for upcoming)
+
+### Splash Screen Redesign
+
+#### Simplified Splash Screen
+- **Removed Elements**:
+  - "Global ateliers online" statistics card
+  - "Precision fit rate" statistics card
+  - "Processing orders" statistics card
+  - "Crafted precision for modern ateliers" footer card
+  - "Luxury workflow intelligence for couture houses" tagline
+- **Kept Elements**:
+  - Logo (_SplashOrb) with fade and scale animations
+  - TailorX name with character-by-character animation
+
+#### Character-by-Character Animation
+- **Sequential Animation**: Each letter of "TailorX" animates individually
+- **Animation Effects**:
+  - Fade-in (opacity 0 → 1)
+  - Slide-up (starts 20px below, moves to position)
+  - Staggered timing (each character starts 0.1 seconds after previous)
+- **Timing**: Logo animates first (1.5s), then text animation starts after 800ms delay
+- **Duration**: Splash screen stays visible for 3.5 seconds before navigation
+
+#### Animation Sequence
+1. Logo fades in and scales up (0-1.5s)
+2. Text animation starts (0.8s delay)
+3. Characters animate sequentially: T → a → i → l → o → r → X
+4. Complete animation finishes in ~2.7 seconds
+5. Screen navigates after 3.5 seconds total
+
+### Profile Image Upload with Firebase Storage
+
+#### Profile Image Management
+- **Firebase Storage Integration**: Profile images are now uploaded to Firebase Storage instead of local storage
+- **Real-Time Image Updates**: Profile images update in real-time across Profile Screen, Edit Profile Screen, and Home Screen
+- **Persistent Storage**: Images persist across app restarts, logout/login, and navigation
+- **Automatic Upload**: Images are automatically uploaded when selected from gallery
+- **Download URL Storage**: Image download URLs are stored in Firestore for fast retrieval
+- **Loading Indicators**: Visual feedback during image upload process
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+
+#### Storage Service
+- **StorageService**: New service for handling Firebase Storage operations
+- **User-Scoped Uploads**: Images uploaded to `users/{uid}/profile/profile.jpg`
+- **Automatic URL Generation**: Download URLs automatically generated after upload
+- **Security**: Storage rules enforce user isolation (users can only access their own images)
+
+#### Profile Model Updates
+- **imageUrl Field**: Added `imageUrl` field to store Firebase Storage download URL
+- **Backward Compatibility**: Maintained `profileImagePath` field for backward compatibility
+- **Real-Time Streams**: Profile data streams include image URLs for real-time updates
+
+#### UI Enhancements
+- **Network Image Loading**: Profile images loaded from Firebase Storage using `NetworkImage`
+- **Home Screen Integration**: Home screen header now displays profile image
+- **Edit Profile Preview**: Edit profile screen shows preview of selected image before saving
+- **Image Persistence**: Images remain visible after navigation and app restart
+
+### UI/UX Redesign & Gradient System
 
 #### AppBar & Navigation
 - **Gradient AppBar**: All AppBars now feature a prominent gradient background using primary (Indigo) to secondary (Purple) colors

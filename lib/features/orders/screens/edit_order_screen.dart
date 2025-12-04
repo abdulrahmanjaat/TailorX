@@ -10,6 +10,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/custom_card.dart';
+import '../../notifications/providers/notifications_providers.dart';
 import '../controllers/orders_controller.dart';
 import '../models/order_model.dart';
 
@@ -117,6 +118,7 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
     final total = double.tryParse(_totalAmountController.text) ?? 0;
     final advance = double.tryParse(_advanceAmountController.text) ?? 0;
 
+    final oldDeliveryDate = _order!.deliveryDate;
     final updatedOrder = _order!.copyWith(
       deliveryDate: _deliveryDate!,
       totalAmount: total,
@@ -127,6 +129,17 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
     );
 
     await ref.read(ordersProvider.notifier).updateOrder(updatedOrder);
+    
+    // Trigger notification if delivery date changed
+    if (_deliveryDate != oldDeliveryDate) {
+      final notificationService = ref.read(notificationServiceProvider);
+      notificationService.notifyDeliveryDateAssigned(
+        updatedOrder.id,
+        updatedOrder.customerName,
+        _deliveryDate!,
+      );
+    }
+    
     if (mounted) {
       SnackbarService.showSuccess(context, message: 'Order updated');
       // Redirect back to order detail screen

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,20 +9,23 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/widgets/custom_card.dart';
+import '../../customers/services/customers_service.dart';
+import '../../notifications/providers/notifications_providers.dart';
 import '../../orders/models/order_model.dart';
 import '../../orders/services/orders_service.dart';
+import '../../profile/services/profile_service.dart';
 
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<String?>(
-      future: SecureStorageService.instance.getUserName(),
-      builder: (context, snapshot) {
-        final userName = snapshot.data ?? 'TailorX';
+    final profileAsync = ref.watch(profileStreamProvider);
+
+    return profileAsync.when(
+      data: (profile) {
+        final userName = profile?.name ?? 'TailorX';
         return Row(
           children: [
             GestureDetector(
@@ -28,11 +33,16 @@ class HomeHeader extends ConsumerWidget {
               child: CircleAvatar(
                 radius: 28,
                 backgroundColor: AppColors.surface.withValues(alpha: 0.9),
-                child: const Icon(
-                  Icons.person,
-                  color: AppColors.primary,
-                  size: AppSizes.iconMd,
-                ),
+                backgroundImage: profile?.profileImagePath != null
+                    ? FileImage(File(profile!.profileImagePath!))
+                    : null,
+                child: profile?.profileImagePath == null
+                    ? const Icon(
+                        Icons.person,
+                        color: AppColors.primary,
+                        size: AppSizes.iconMd,
+                      )
+                    : null,
               ),
             ),
             const SizedBox(width: AppSizes.sm),
@@ -45,30 +55,100 @@ class HomeHeader extends ConsumerWidget {
                 ],
               ),
             ),
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  onPressed: () => context.push(AppRoutes.notifications),
-                  icon: const Icon(Icons.notifications_none),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.primary,
+            Consumer(
+              builder: (context, ref, child) {
+                final unreadCountAsync = ref.watch(unreadCountProvider);
+                final unreadCount = unreadCountAsync.when(
+                  data: (count) => count,
+                  loading: () => 0,
+                  error: (_, _) => 0,
+                );
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      onPressed: () => context.push(AppRoutes.notifications),
+                      icon: const Icon(Icons.notifications_none),
                     ),
-                  ),
-                ),
-              ],
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.error,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            unreadCount > 99 ? '99+' : '$unreadCount',
+                            style: const TextStyle(
+                              color: AppColors.background,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ],
         );
       },
+      loading: () => Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.surface.withValues(alpha: 0.9),
+            child: const Icon(
+              Icons.person,
+              color: AppColors.primary,
+              size: AppSizes.iconMd,
+            ),
+          ),
+          const SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Loading...', style: AppTextStyles.titleLarge),
+                Text('Studio workspace', style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+        ],
+      ),
+      error: (_, _) => Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.surface.withValues(alpha: 0.9),
+            child: const Icon(
+              Icons.person,
+              color: AppColors.primary,
+              size: AppSizes.iconMd,
+            ),
+          ),
+          const SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('TailorX', style: AppTextStyles.titleLarge),
+                Text('Studio workspace', style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -79,11 +159,11 @@ class WelcomeCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersStreamProvider);
+    final profileAsync = ref.watch(profileStreamProvider);
 
-    return FutureBuilder<String?>(
-      future: SecureStorageService.instance.getShopName(),
-      builder: (context, shopSnapshot) {
-        final shopName = shopSnapshot.data ?? 'TailorX';
+    return profileAsync.when(
+      data: (profile) {
+        final shopName = profile?.shopName ?? 'TailorX';
         return ordersAsync.when(
           data: (orders) {
             final today = DateTime.now();
@@ -96,25 +176,45 @@ class WelcomeCard extends ConsumerWidget {
                   order.createdAt.isBefore(todayEnd);
             }).length;
 
-            // Find nearest fitting time (delivery date) from today's orders
-            String? nearestFittingTime;
-            DateTime? nearestFitting;
-            for (final order in orders) {
-              if (order.deliveryDate.isAfter(DateTime.now())) {
-                if (nearestFitting == null ||
-                    order.deliveryDate.isBefore(nearestFitting)) {
-                  nearestFitting = order.deliveryDate;
-                }
+            // Get upcoming orders (not completed)
+            final upcomingOrders = orders
+                .where((order) => order.status != OrderStatus.completed)
+                .toList();
+
+            // Get next delivery date
+            String deliveryInfo = 'No upcoming deliveries';
+            IconData deliveryIcon = Icons.calendar_today;
+
+            if (upcomingOrders.isNotEmpty) {
+              // Sort by delivery date and get the nearest one
+              upcomingOrders.sort(
+                (a, b) => a.deliveryDate.compareTo(b.deliveryDate),
+              );
+              final nextDelivery = upcomingOrders.first.deliveryDate;
+              final now = DateTime.now();
+              final daysUntilDelivery = nextDelivery.difference(now).inDays;
+
+              if (daysUntilDelivery < 0) {
+                deliveryInfo =
+                    '${daysUntilDelivery.abs()} ${daysUntilDelivery.abs() == 1 ? 'day' : 'days'} overdue';
+                deliveryIcon = Icons.warning;
+              } else if (daysUntilDelivery == 0) {
+                deliveryInfo = 'Delivery due today';
+                deliveryIcon = Icons.today;
+              } else if (daysUntilDelivery == 1) {
+                deliveryInfo = 'Delivery tomorrow';
+                deliveryIcon = Icons.event;
+              } else if (daysUntilDelivery <= 7) {
+                deliveryInfo = 'Delivery in $daysUntilDelivery days';
+                deliveryIcon = Icons.schedule;
+              } else {
+                deliveryInfo = DateFormat('MMM d').format(nextDelivery);
+                deliveryIcon = Icons.calendar_today;
               }
             }
 
-            if (nearestFitting != null) {
-              final timeFormat = DateFormat('h:mm a');
-              nearestFittingTime =
-                  'First fitting at ${timeFormat.format(nearestFitting)}';
-            } else {
-              nearestFittingTime = 'No upcoming fittings';
-            }
+            // Calculate total pending orders
+            final pendingOrdersCount = upcomingOrders.length;
 
             return CustomCard(
               padding: const EdgeInsets.all(AppSizes.xl),
@@ -164,18 +264,35 @@ class WelcomeCard extends ConsumerWidget {
                           color: AppColors.background.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Icon(
-                          Icons.schedule,
-                          color: AppColors.background,
-                        ),
+                        child: Icon(deliveryIcon, color: AppColors.background),
                       ),
                       const SizedBox(width: AppSizes.sm),
                       Expanded(
-                        child: Text(
-                          nearestFittingTime,
-                          style: AppTextStyles.bodyRegular.copyWith(
-                            color: AppColors.background.withValues(alpha: 0.9),
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              deliveryInfo,
+                              style: AppTextStyles.bodyRegular.copyWith(
+                                color: AppColors.background.withValues(
+                                  alpha: 0.9,
+                                ),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (pendingOrdersCount > 0) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '$pendingOrdersCount ${pendingOrdersCount == 1 ? 'order' : 'orders'} pending',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.background.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ],
@@ -195,7 +312,7 @@ class WelcomeCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back, $shopName',
+                  'Welcome back, ${profile?.shopName ?? 'TailorX'}',
                   style: AppTextStyles.headlineMedium.copyWith(
                     color: AppColors.background,
                     fontWeight: FontWeight.w800,
@@ -229,7 +346,7 @@ class WelcomeCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Welcome back, $shopName',
+                    'Welcome back, ${profile?.shopName ?? 'TailorX'}',
                     style: AppTextStyles.headlineMedium.copyWith(
                       color: AppColors.background,
                       fontWeight: FontWeight.w800,
@@ -281,6 +398,41 @@ class WelcomeCard extends ConsumerWidget {
           },
         );
       },
+      loading: () => CustomCard(
+        padding: const EdgeInsets.all(AppSizes.xl),
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.background),
+        ),
+      ),
+      error: (_, _) => CustomCard(
+        padding: const EdgeInsets.all(AppSizes.xl),
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Welcome back, TailorX',
+              style: AppTextStyles.headlineMedium.copyWith(
+                color: AppColors.background,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSizes.md),
+            const Center(
+              child: CircularProgressIndicator(color: AppColors.background),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -374,6 +526,7 @@ class TodayStatsRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersStreamProvider);
+    final customersAsync = ref.watch(customersStreamProvider);
 
     return ordersAsync.when(
       data: (orders) {
@@ -398,10 +551,17 @@ class TodayStatsRow extends ConsumerWidget {
           return order.status == OrderStatus.completed;
         }).length;
 
+        // Get customer count from stream
+        final customerCount = customersAsync.maybeWhen(
+          data: (customers) => customers.length,
+          orElse: () => 0,
+        );
+
         final stats = [
           ('Today Orders', todayOrders.toString(), Icons.assignment_turned_in),
           ('Pending', pendingOrders.toString(), Icons.timer),
           ('Completed', completedOrders.toString(), Icons.check_circle_outline),
+          ('Customers', customerCount.toString(), Icons.people),
         ];
 
         return LayoutBuilder(
