@@ -5,10 +5,16 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
 class AuthShell extends StatelessWidget {
-  const AuthShell({super.key, required this.child, this.subtitle});
+  const AuthShell({
+    super.key,
+    required this.child,
+    this.subtitle,
+    this.hideBrandMark = false,
+  });
 
   final Widget child;
   final String? subtitle;
+  final bool hideBrandMark;
 
   @override
   Widget build(BuildContext context) {
@@ -75,8 +81,10 @@ class AuthShell extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _BrandMark(subtitle: subtitle),
-                    const SizedBox(height: AppSizes.xxl),
+                    if (!hideBrandMark) ...[
+                      _BrandMark(subtitle: subtitle),
+                      const SizedBox(height: AppSizes.xxl),
+                    ],
                     Expanded(child: child),
                   ],
                 ),
@@ -105,14 +113,10 @@ class _BrandMark extends StatelessWidget {
               padding: const EdgeInsets.all(AppSizes.md),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
+                    color: AppColors.dark.withValues(alpha: 0.1),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),

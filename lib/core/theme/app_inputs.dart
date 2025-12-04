@@ -20,6 +20,7 @@ class AppInputField extends StatelessWidget {
     this.enabled = true,
     this.maxLines = 1,
     this.decoration,
+    this.autofillHints,
   });
 
   final TextEditingController? controller;
@@ -35,6 +36,7 @@ class AppInputField extends StatelessWidget {
   final bool enabled;
   final int maxLines;
   final InputDecoration? decoration;
+  final Iterable<String>? autofillHints;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,7 @@ class AppInputField extends StatelessWidget {
       textInputAction: textInputAction,
       enabled: enabled,
       maxLines: maxLines,
+      autofillHints: autofillHints,
       style: AppTextStyles.input.copyWith(
         color: AppColors.dark,
         fontWeight: FontWeight.w500,

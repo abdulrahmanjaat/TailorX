@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:intl_phone_field/phone_number.dart';
 
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
@@ -11,7 +10,6 @@ import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_inputs.dart';
-import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/auth_shell.dart';
 import '../services/auth_service.dart';
@@ -26,14 +24,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailOrPhoneController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  PhoneNumber? _phoneNumber;
-  bool _usePhoneLogin = false;
   bool _obscurePassword = true;
   bool _isLoading = false;
-  String? _initialCountryCode;
 
   // Real-time validation state
   bool _isEmailValid = true;
@@ -42,30 +36,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCountryCode();
     // Add listeners for real-time validation
-    _emailOrPhoneController.addListener(_validateEmail);
+    _emailController.addListener(_validateEmail);
     _passwordController.addListener(_validatePassword);
   }
 
   void _validateEmail() {
-    if (!_usePhoneLogin) {
-      final email = _emailOrPhoneController.text.trim();
-      // Only validate if field has content
-      if (email.isNotEmpty) {
-        final isValid = Validators.emailRequired(email) == null;
-        if (_isEmailValid != isValid) {
-          setState(() {
-            _isEmailValid = isValid;
-          });
-        }
-      } else {
-        // Empty field should show normal border
-        if (!_isEmailValid) {
-          setState(() {
-            _isEmailValid = true;
-          });
-        }
+    final email = _emailController.text.trim();
+    // Only validate if field has content
+    if (email.isNotEmpty) {
+      final isValid = Validators.emailRequired(email) == null;
+      if (_isEmailValid != isValid) {
+        setState(() {
+          _isEmailValid = isValid;
+        });
+      }
+    } else {
+      // Empty field should show normal border
+      if (!_isEmailValid) {
+        setState(() {
+          _isEmailValid = true;
+        });
       }
     }
   }
@@ -90,19 +81,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _loadCountryCode() async {
-    final countryCode = await SecureStorageService.instance.getCountryCode();
-    if (mounted) {
-      setState(() {
-        _initialCountryCode = countryCode ?? 'PK';
-      });
-    }
-  }
-
   @override
   void dispose() {
-    _emailOrPhoneController.dispose();
-    _phoneController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -114,16 +95,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final authRepository = ref.read(authRepositoryProvider);
-      final emailOrPhone = _usePhoneLogin
-          ? (_phoneNumber?.completeNumber ?? _phoneController.text.trim())
-          : _emailOrPhoneController.text.trim();
+      final email = _emailController.text.trim();
 
       await authRepository.signIn(
-        emailOrPhone: emailOrPhone,
+        emailOrPhone: email,
         password: _passwordController.text,
       );
 
       if (mounted) {
+        // Finish autofill context to save credentials in password manager
+        TextInput.finishAutofillContext(shouldSave: true);
+
         SnackbarService.showSuccess(context, message: 'Welcome back!');
         context.go(AppRoutes.home);
       }
@@ -177,370 +159,245 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: SingleChildScrollView(
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome Back',
-                style: AppTextStyles.headlineLarge.copyWith(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.dark,
-                  letterSpacing: -1,
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(height: AppSizes.md),
-              Text(
-                'Sign in to continue to your workspace',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  color: AppColors.dark.withValues(alpha: 0.5),
-                  fontWeight: FontWeight.w400,
-                  fontSize: 17,
-                ),
-              ),
-              const SizedBox(height: AppSizes.xxl + AppSizes.lg),
-              Row(
-                children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Email'),
-                      selected: !_usePhoneLogin,
-                      onSelected: (selected) {
-                        setState(() {
-                          _usePhoneLogin = !selected;
-                          // Reset validation when switching
-                          _isEmailValid = true;
-                        });
-                      },
-                      selectedColor: AppColors.primary,
-                      labelStyle: TextStyle(
-                        color: _usePhoneLogin
-                            ? AppColors.dark
-                            : AppColors.background,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSizes.sm),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Phone'),
-                      selected: _usePhoneLogin,
-                      onSelected: (selected) {
-                        setState(() {
-                          _usePhoneLogin = selected;
-                          // Reset validation when switching
-                          _isEmailValid = true;
-                        });
-                      },
-                      selectedColor: AppColors.primary,
-                      labelStyle: TextStyle(
-                        color: _usePhoneLogin
-                            ? AppColors.background
-                            : AppColors.dark,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.lg),
-              _usePhoneLogin
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Phone Number',
-                          style: AppTextStyles.bodyRegular.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: AppSizes.xs),
-                        _initialCountryCode == null
-                            ? const SizedBox(
-                                height: 56,
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              )
-                            : IntlPhoneField(
-                                controller: _phoneController,
-                                decoration: InputDecoration(
-                                  hintText: 'Enter phone number',
-                                  hintStyle: AppTextStyles.inputHint.copyWith(
-                                    color: AppColors.dark.withValues(
-                                      alpha: 0.6,
-                                    ),
-                                  ),
-                                  labelStyle: TextStyle(
-                                    color: AppColors.dark,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  filled: true,
-                                  fillColor: AppColors.background,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: AppSizes.md,
-                                    vertical: AppSizes.md,
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minHeight: 56,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.borderGray,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.borderGray,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.primary,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  errorBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.error,
-                                      width: 2,
-                                    ),
-                                  ),
-                                ),
-                                initialCountryCode: _initialCountryCode ?? 'PK',
-                                onChanged: (phone) {
-                                  setState(() {
-                                    _phoneNumber = phone;
-                                  });
-                                },
-                                validator: (phone) {
-                                  if (phone == null || phone.number.isEmpty) {
-                                    return 'Phone number is required';
-                                  }
-                                  if (phone.number.length < 10) {
-                                    return 'Phone number must be at least 10 digits';
-                                  }
-                                  return null;
-                                },
-                              ),
-                      ],
-                    )
-                  : AppInputField(
-                      labelText: 'Email',
-                      hintText: 'team@tailorx.com',
-                      keyboardType: TextInputType.emailAddress,
-                      controller: _emailOrPhoneController,
-                      validator: Validators.emailRequired,
-                      onChanged: (_) => _validateEmail(),
-                      decoration: InputDecoration(
-                        hintText: 'team@tailorx.com',
-                        hintStyle: AppTextStyles.inputHint.copyWith(
-                          color: AppColors.dark.withValues(alpha: 0.6),
-                        ),
-                        labelText: 'Email',
-                        labelStyle: TextStyle(
-                          color: AppColors.dark,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.mail_outline,
-                          color: AppColors.dark.withValues(alpha: 0.5),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.background,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.md,
-                          vertical: AppSizes.md,
-                        ),
-                        constraints: const BoxConstraints(minHeight: 56),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: _isEmailValid
-                                ? AppColors.borderGray
-                                : AppColors.error,
-                            width: _isEmailValid ? 1 : 2,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: _isEmailValid
-                                ? AppColors.borderGray
-                                : AppColors.error,
-                            width: _isEmailValid ? 1 : 2,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: _isEmailValid
-                                ? AppColors.primary
-                                : AppColors.error,
-                            width: 2,
-                          ),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.error,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                    ),
-              const SizedBox(height: AppSizes.lg),
-              AppInputField(
-                labelText: 'Password',
-                hintText: 'Enter your password',
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                validator: Validators.password,
-                onChanged: (_) => _validatePassword(),
-                decoration: InputDecoration(
-                  hintText: 'Enter your password',
-                  hintStyle: AppTextStyles.inputHint.copyWith(
-                    color: AppColors.dark.withValues(alpha: 0.6),
-                  ),
-                  labelText: 'Password',
-                  labelStyle: TextStyle(
+          child: AutofillGroup(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome Back',
+                  style: AppTextStyles.headlineLarge.copyWith(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900,
                     color: AppColors.dark,
-                    fontWeight: FontWeight.w500,
+                    letterSpacing: -1,
+                    height: 1.1,
                   ),
-                  prefixIcon: Icon(
-                    Icons.lock_outline,
+                ),
+                const SizedBox(height: AppSizes.md),
+                Text(
+                  'Sign in to continue to your workspace',
+                  style: AppTextStyles.bodyLarge.copyWith(
                     color: AppColors.dark.withValues(alpha: 0.5),
-                  ),
-                  suffixIcon: IconButton(
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      transitionBuilder: (child, animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: ScaleTransition(
-                            scale: animation,
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        key: ValueKey(_obscurePassword),
-                        color: AppColors.dark.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                  filled: true,
-                  fillColor: AppColors.background,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.md,
-                    vertical: AppSizes.md,
-                  ),
-                  constraints: const BoxConstraints(minHeight: 56),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: _isPasswordValid
-                          ? AppColors.borderGray
-                          : AppColors.error,
-                      width: _isPasswordValid ? 1 : 2,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: _isPasswordValid
-                          ? AppColors.borderGray
-                          : AppColors.error,
-                      width: _isPasswordValid ? 1 : 2,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: _isPasswordValid
-                          ? AppColors.primary
-                          : AppColors.error,
-                      width: 2,
-                    ),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: AppColors.error,
-                      width: 2,
-                    ),
+                    fontWeight: FontWeight.w400,
+                    fontSize: 17,
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSizes.md),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _openForgotPassword,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.sm,
-                    ),
-                  ),
-                  child: Text(
-                    'Forgot Password?',
-                    style: AppTextStyles.bodyRegular.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSizes.xxl),
-              Center(
-                child: AppButton(
-                  label: 'Sign In',
-                  onPressed: _isLoading ? null : _submit,
-                  isLoading: _isLoading,
-                ),
-              ),
-              const SizedBox(height: AppSizes.lg),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Don't have an account? ",
-                    style: AppTextStyles.bodyRegular.copyWith(
+                const SizedBox(height: AppSizes.xxl + AppSizes.lg),
+                AppInputField(
+                  labelText: 'Email',
+                  hintText: 'team@tailorx.com',
+                  keyboardType: TextInputType.emailAddress,
+                  controller: _emailController,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  validator: Validators.emailRequired,
+                  onChanged: (_) => _validateEmail(),
+                  decoration: InputDecoration(
+                    hintText: 'team@tailorx.com',
+                    hintStyle: AppTextStyles.inputHint.copyWith(
                       color: AppColors.dark.withValues(alpha: 0.6),
                     ),
+                    labelText: 'Email',
+                    labelStyle: TextStyle(
+                      color: AppColors.dark,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.mail_outline,
+                      color: AppColors.dark.withValues(alpha: 0.5),
+                    ),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.md,
+                      vertical: AppSizes.md,
+                    ),
+                    constraints: const BoxConstraints(minHeight: 56),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _isEmailValid
+                            ? AppColors.borderGray
+                            : AppColors.error,
+                        width: _isEmailValid ? 1 : 2,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _isEmailValid
+                            ? AppColors.borderGray
+                            : AppColors.error,
+                        width: _isEmailValid ? 1 : 2,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _isEmailValid
+                            ? AppColors.primary
+                            : AppColors.error,
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.error,
+                        width: 2,
+                      ),
+                    ),
                   ),
-                  TextButton(
-                    onPressed: () => context.go(AppRoutes.signup),
+                ),
+                const SizedBox(height: AppSizes.lg),
+                AppInputField(
+                  labelText: 'Password',
+                  hintText: 'Enter your password',
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
+                  validator: Validators.password,
+                  onChanged: (_) => _validatePassword(),
+                  decoration: InputDecoration(
+                    hintText: 'Enter your password',
+                    hintStyle: AppTextStyles.inputHint.copyWith(
+                      color: AppColors.dark.withValues(alpha: 0.6),
+                    ),
+                    labelText: 'Password',
+                    labelStyle: TextStyle(
+                      color: AppColors.dark,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.lock_outline,
+                      color: AppColors.dark.withValues(alpha: 0.5),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: ScaleTransition(
+                              scale: animation,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          key: ValueKey(_obscurePassword),
+                          color: AppColors.dark.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                    filled: true,
+                    fillColor: AppColors.background,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.md,
+                      vertical: AppSizes.md,
+                    ),
+                    constraints: const BoxConstraints(minHeight: 56),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _isPasswordValid
+                            ? AppColors.borderGray
+                            : AppColors.error,
+                        width: _isPasswordValid ? 1 : 2,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _isPasswordValid
+                            ? AppColors.borderGray
+                            : AppColors.error,
+                        width: _isPasswordValid ? 1 : 2,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: _isPasswordValid
+                            ? AppColors.primary
+                            : AppColors.error,
+                        width: 2,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.error,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSizes.md),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _openForgotPassword,
                     style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.sm,
+                      ),
                     ),
                     child: Text(
-                      'Sign up',
+                      'Forgot Password?',
                       style: AppTextStyles.bodyRegular.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: AppSizes.xxl),
+                Center(
+                  child: AppButton(
+                    label: 'Sign In',
+                    onPressed: _isLoading ? null : _submit,
+                    isLoading: _isLoading,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.lg),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Don't have an account? ",
+                      style: AppTextStyles.bodyRegular.copyWith(
+                        color: AppColors.dark.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.go(AppRoutes.signup),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Sign up',
+                        style: AppTextStyles.bodyRegular.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

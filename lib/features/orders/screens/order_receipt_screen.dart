@@ -280,7 +280,6 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                 Expanded(
                   child: AppButton(
                     label: 'Download',
-                    type: AppButtonType.secondary,
                     onPressed: () => _downloadReceipt(context),
                   ),
                 ),

@@ -253,7 +253,6 @@ class OrderDetailScreen extends ConsumerWidget {
                 label: 'Edit Order',
                 onPressed: () =>
                     context.push('${AppRoutes.editOrder}/$orderId'),
-                type: AppButtonType.secondary,
               ),
             ),
             const SizedBox(height: AppSizes.md),
@@ -261,7 +260,6 @@ class OrderDetailScreen extends ConsumerWidget {
               child: AppButton(
                 label: 'Delete Order',
                 onPressed: () => _confirmDelete(context, ref, order.id),
-                type: AppButtonType.secondary,
               ),
             ),
             const SizedBox(height: AppSizes.xl),
