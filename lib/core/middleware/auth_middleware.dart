@@ -26,8 +26,8 @@ class AuthMiddleware {
       return AppRoutes.home;
     }
 
-    // Otherwise, show login
-    return AppRoutes.login;
+    // Otherwise, show login options
+    return AppRoutes.loginOptions;
   }
 
   /// Redirect logic for routes
@@ -75,12 +75,14 @@ class AuthMiddleware {
 
       // If trying to access protected route without login
       if (isProtectedRoute && !isLoggedIn) {
-        return AppRoutes.login;
+        return AppRoutes.loginOptions;
       }
 
       // If logged in and trying to access auth screens, redirect to home
       if (isLoggedIn &&
           (currentLocation == AppRoutes.login ||
+              currentLocation == AppRoutes.loginOptions ||
+              currentLocation == AppRoutes.phoneLogin ||
               currentLocation == AppRoutes.signup ||
               currentLocation == AppRoutes.onboarding)) {
         return AppRoutes.home;

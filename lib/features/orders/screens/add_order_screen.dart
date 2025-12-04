@@ -547,8 +547,6 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                   onPressed: () => context.push(
                     '${AppRoutes.addMeasurement}?customerId=$_customerId',
                   ),
-                  type: AppButtonType.secondary,
-                  isSmall: true,
                 ),
               ],
             ),
@@ -627,8 +625,6 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
           onPressed: () => context.push(
             '${AppRoutes.addMeasurement}?customerId=$_customerId',
           ),
-          type: AppButtonType.secondary,
-          isSmall: true,
         ),
         const SizedBox(height: AppSizes.md),
       ],

@@ -103,7 +103,6 @@ class MeasurementDetailScreen extends ConsumerWidget {
                 onPressed: () => context.push(
                   '${AppRoutes.addMeasurement}?measurementId=$measurementId',
                 ),
-                type: AppButtonType.secondary,
               ),
             ),
           ],

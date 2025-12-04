@@ -69,7 +69,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         // Mark onboarding as seen
         await SecureStorageService.instance.setHasSeenOnboarding(true);
         if (context.mounted) {
-          context.go(AppRoutes.login);
+          context.go(AppRoutes.loginOptions);
         }
         return;
       }

@@ -4,56 +4,52 @@ import '../constants/app_sizes.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
 
-enum AppButtonType { primary, secondary }
-
 class AppButton extends StatelessWidget {
   const AppButton({
     super.key,
     required this.label,
     required this.onPressed,
-    this.type = AppButtonType.primary,
-    this.isSmall = false,
     this.isLoading = false,
     this.icon,
+    this.fullWidth = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
-  final AppButtonType type;
-  final bool isSmall;
   final bool isLoading;
   final IconData? icon;
+  final bool fullWidth;
 
-  Gradient get _backgroundGradient {
-    // All buttons use the same gradient as app bar
-    return LinearGradient(
-      colors: [AppColors.primary, AppColors.secondary],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
-  }
+  /// Gradient matching the app bar
+  static Gradient get gradient => LinearGradient(
+    colors: [AppColors.primary, AppColors.secondary],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
-  Color get _foregroundColor {
-    // All buttons use white text on gradient background
-    return AppColors.background;
-  }
+  Color get _foregroundColor => AppColors.background;
 
   @override
   Widget build(BuildContext context) {
     final effectiveLabel = Text(
       label,
-      style: AppTextStyles.button(isSmall).copyWith(color: _foregroundColor),
+      style: AppTextStyles.bodyLarge.copyWith(
+        color: _foregroundColor,
+        fontWeight: FontWeight.w700,
+        fontSize: 17,
+        letterSpacing: 0.2,
+      ),
       textAlign: TextAlign.center,
       softWrap: true,
     );
 
     final child = isLoading
         ? SizedBox(
-            width: AppSizes.iconSm,
-            height: AppSizes.iconSm,
+            width: 24,
+            height: 24,
             child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(_foregroundColor),
-              strokeWidth: 2,
+              strokeWidth: 2.5,
             ),
           )
         : Row(
@@ -61,41 +57,45 @@ class AppButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: AppSizes.iconSm, color: _foregroundColor),
+                Icon(icon, size: 20, color: _foregroundColor),
                 const SizedBox(width: AppSizes.sm),
               ],
               Flexible(child: effectiveLabel),
             ],
           );
 
+    final button = Container(
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLoading ? null : onPressed,
+          borderRadius: BorderRadius.circular(100),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.lg,
+              vertical: AppSizes.md,
+            ),
+            child: Center(child: child),
+          ),
+        ),
+      ),
+    );
+
+    if (fullWidth) {
+      return SizedBox(width: double.infinity, child: button);
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final buttonWidth = constraints.maxWidth > 382
             ? 382.0
             : constraints.maxWidth;
-        return SizedBox(
-          width: buttonWidth,
-          height: 48,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: _backgroundGradient,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: isLoading ? null : onPressed,
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isSmall ? AppSizes.md : AppSizes.lg,
-                  ),
-                  child: Center(child: child),
-                ),
-              ),
-            ),
-          ),
-        );
+        return SizedBox(width: buttonWidth, child: button);
       },
     );
   }

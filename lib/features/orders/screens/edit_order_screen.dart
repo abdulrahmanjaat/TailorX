@@ -129,7 +129,7 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
     );
 
     await ref.read(ordersProvider.notifier).updateOrder(updatedOrder);
-    
+
     // Trigger notification if delivery date changed
     if (_deliveryDate != oldDeliveryDate) {
       final notificationService = ref.read(notificationServiceProvider);
@@ -139,7 +139,7 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
         _deliveryDate!,
       );
     }
-    
+
     if (mounted) {
       SnackbarService.showSuccess(context, message: 'Order updated');
       // Redirect back to order detail screen
