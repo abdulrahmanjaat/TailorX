@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'currency_service.dart';
+import 'secure_storage_service.dart';
 
 class LocationService {
   LocationService._();
@@ -93,8 +95,25 @@ class LocationService {
 
       if (placemarks.isNotEmpty) {
         final placemark = placemarks.first;
+        final countryCode = placemark.isoCountryCode;
+
+        // Store country code
+        if (countryCode != null) {
+          await SecureStorageService.instance.setCountryCode(countryCode);
+
+          // Get and store currency symbol based on country
+          final currencySymbol = CurrencyService.instance.getCurrencySymbol(
+            countryCode,
+          );
+          await SecureStorageService.instance.setCurrencySymbol(currencySymbol);
+
+          debugPrint(
+            'Country detected: $countryCode, Currency: $currencySymbol',
+          );
+        }
+
         // Return ISO country code (e.g., 'PK', 'US', 'IN')
-        return placemark.isoCountryCode;
+        return countryCode;
       }
 
       return null;
@@ -102,6 +121,59 @@ class LocationService {
       // Handle errors silently - return null if location cannot be determined
       debugPrint('Location error: $e');
       return null;
+    }
+  }
+
+  /// Get currency symbol for current location
+  /// This uses the stored country code from previous location detection
+  /// If currency symbol is not stored, it will be calculated and stored
+  Future<String> getCurrencySymbol() async {
+    try {
+      // First check if currency symbol is already stored
+      final cachedSymbol = await SecureStorageService.instance
+          .getCurrencySymbol();
+      if (cachedSymbol != null && cachedSymbol.isNotEmpty) {
+        return cachedSymbol;
+      }
+
+      // If not cached, get from country code and store it
+      final countryCode = await SecureStorageService.instance.getCountryCode();
+      final symbol = CurrencyService.instance.getCurrencySymbol(countryCode);
+
+      // Store the currency symbol for future use
+      await SecureStorageService.instance.setCurrencySymbol(symbol);
+
+      debugPrint(
+        'Currency symbol retrieved and stored: $symbol (Country: $countryCode)',
+      );
+      return symbol;
+    } catch (e) {
+      debugPrint('Currency symbol error: $e');
+      return '\$'; // Default to USD
+    }
+  }
+
+  /// Ensure currency symbol is set based on stored country code
+  /// Call this method to update currency if country code exists but currency doesn't
+  Future<void> ensureCurrencySymbol() async {
+    try {
+      final countryCode = await SecureStorageService.instance.getCountryCode();
+      if (countryCode != null && countryCode.isNotEmpty) {
+        final cachedSymbol = await SecureStorageService.instance
+            .getCurrencySymbol();
+        if (cachedSymbol == null || cachedSymbol.isEmpty) {
+          // Currency not set, calculate and store it
+          final currencySymbol = CurrencyService.instance.getCurrencySymbol(
+            countryCode,
+          );
+          await SecureStorageService.instance.setCurrencySymbol(currencySymbol);
+          debugPrint(
+            'Currency symbol ensured: $currencySymbol (Country: $countryCode)',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error ensuring currency symbol: $e');
     }
   }
 }

@@ -21,7 +21,7 @@ extension OrderStatusX on OrderStatus {
       case OrderStatus.newOrder:
         return Colors.green;
       case OrderStatus.inProgress:
-        return Colors.black;
+        return Colors.orange;
       case OrderStatus.completed:
         return Colors.red;
     }

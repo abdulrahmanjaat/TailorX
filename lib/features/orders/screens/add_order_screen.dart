@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/helpers/currency_formatter.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
@@ -61,14 +62,25 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
   DateTime? _deliveryDate;
 
   final List<_SelectedItem> _selectedItems = [];
+  String _currencySymbol = '\$'; // Default, will be updated
 
   @override
   void initState() {
     super.initState();
     _advanceAmountController.addListener(() => setState(() {}));
+    _loadCurrencySymbol();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadParamsFromRoute();
     });
+  }
+
+  Future<void> _loadCurrencySymbol() async {
+    final symbol = await CurrencyFormatter.getCurrencySymbol();
+    if (mounted) {
+      setState(() {
+        _currencySymbol = symbol;
+      });
+    }
   }
 
   void _loadParamsFromRoute() {
@@ -343,7 +355,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                         children: [
                           Text('Subtotal', style: AppTextStyles.bodyLarge),
                           Text(
-                            '\$${_subtotal.toStringAsFixed(2)}',
+                            '$_currencySymbol${_subtotal.toStringAsFixed(2)}',
                             style: AppTextStyles.bodyLarge.copyWith(
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,
@@ -374,7 +386,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                 labelText: 'Advance Amount',
                 hintText: 'Enter advance amount',
                 keyboardType: TextInputType.number,
-                prefix: const Icon(Icons.payments_outlined),
+                prefixText: '$_currencySymbol: ',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Enter advance amount';
@@ -398,7 +410,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                     children: [
                       Text('Balance', style: AppTextStyles.bodyLarge),
                       Text(
-                        '\$${(_subtotal - (double.tryParse(_advanceAmountController.text) ?? 0)).toStringAsFixed(2)}',
+                        '$_currencySymbol${(_subtotal - (double.tryParse(_advanceAmountController.text) ?? 0)).toStringAsFixed(2)}',
                         style: AppTextStyles.bodyLarge.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
@@ -487,7 +499,7 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
                     labelText: 'Unit Price',
                     hintText: '0.00',
                     keyboardType: TextInputType.number,
-                    prefix: const Icon(Icons.attach_money),
+                    prefixText: '$_currencySymbol: ',
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Required';
@@ -507,12 +519,20 @@ class _AddOrderScreenState extends ConsumerState<AddOrderScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Line Total', style: AppTextStyles.caption),
-                Text(
-                  '\$${item.lineTotal.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                FutureBuilder<String>(
+                  future: CurrencyFormatter.formatAmount(item.lineTotal),
+                  builder: (context, snapshot) {
+                    final amount =
+                        snapshot.data ??
+                        '$_currencySymbol${item.lineTotal.toStringAsFixed(2)}';
+                    return Text(
+                      amount,
+                      style: AppTextStyles.bodyLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

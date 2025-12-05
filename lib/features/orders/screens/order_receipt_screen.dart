@@ -11,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/helpers/currency_formatter.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -32,6 +33,22 @@ class OrderReceiptScreen extends ConsumerStatefulWidget {
 
 class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
   final GlobalKey _receiptKey = GlobalKey();
+  String _currencySymbol = '\$'; // Default, will be updated
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrencySymbol();
+  }
+
+  Future<void> _loadCurrencySymbol() async {
+    final symbol = await CurrencyFormatter.getCurrencySymbol();
+    if (mounted) {
+      setState(() {
+        _currencySymbol = symbol;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,11 +201,22 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: AppSizes.sm),
-                                  Text(
-                                    '\$${item.lineTotal.toStringAsFixed(2)}',
-                                    style: AppTextStyles.bodyRegular.copyWith(
-                                      fontWeight: FontWeight.w600,
+                                  FutureBuilder<String>(
+                                    future: CurrencyFormatter.formatAmount(
+                                      item.lineTotal,
                                     ),
+                                    builder: (context, snapshot) {
+                                      final amount =
+                                          snapshot.data ??
+                                          '$_currencySymbol${item.lineTotal.toStringAsFixed(2)}';
+                                      return Text(
+                                        amount,
+                                        style: AppTextStyles.bodyRegular
+                                            .copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -196,9 +224,19 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Qty: ${item.quantity} × \$${item.unitPrice.toStringAsFixed(2)}',
-                                    style: AppTextStyles.caption,
+                                  FutureBuilder<String>(
+                                    future: CurrencyFormatter.formatAmount(
+                                      item.unitPrice,
+                                    ),
+                                    builder: (context, snapshot) {
+                                      final price =
+                                          snapshot.data ??
+                                          '$_currencySymbol${item.unitPrice.toStringAsFixed(2)}';
+                                      return Text(
+                                        'Qty: ${item.quantity} × $price',
+                                        style: AppTextStyles.caption,
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -216,22 +254,43 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
                       const SizedBox(height: AppSizes.md),
                       const Divider(),
                       const SizedBox(height: AppSizes.md),
-                      _ReceiptRow(
-                        'Subtotal',
-                        '\$${order.subtotal.toStringAsFixed(2)}',
-                        isBold: true,
+                      FutureBuilder<String>(
+                        future: CurrencyFormatter.formatAmount(order.subtotal),
+                        builder: (context, snapshot) {
+                          final amount =
+                              snapshot.data ??
+                              '$_currencySymbol${order.subtotal.toStringAsFixed(2)}';
+                          return _ReceiptRow('Subtotal', amount, isBold: true);
+                        },
                       ),
                       const SizedBox(height: AppSizes.sm),
-                      _ReceiptRow(
-                        'Advance Amount',
-                        '\$${order.advanceAmount.toStringAsFixed(2)}',
+                      FutureBuilder<String>(
+                        future: CurrencyFormatter.formatAmount(
+                          order.advanceAmount,
+                        ),
+                        builder: (context, snapshot) {
+                          final amount =
+                              snapshot.data ??
+                              '$_currencySymbol${order.advanceAmount.toStringAsFixed(2)}';
+                          return _ReceiptRow('Advance Amount', amount);
+                        },
                       ),
                       const SizedBox(height: AppSizes.sm),
-                      _ReceiptRow(
-                        'Remaining Amount',
-                        '\$${order.remainingAmount.toStringAsFixed(2)}',
-                        isBold: true,
-                        color: AppColors.primary,
+                      FutureBuilder<String>(
+                        future: CurrencyFormatter.formatAmount(
+                          order.remainingAmount,
+                        ),
+                        builder: (context, snapshot) {
+                          final amount =
+                              snapshot.data ??
+                              '$_currencySymbol${order.remainingAmount.toStringAsFixed(2)}';
+                          return _ReceiptRow(
+                            'Remaining Amount',
+                            amount,
+                            isBold: true,
+                            color: AppColors.primary,
+                          );
+                        },
                       ),
                       if (order.notes != null && order.notes!.isNotEmpty) ...[
                         const SizedBox(height: AppSizes.md),
@@ -461,9 +520,9 @@ Gender: ${order.gender}
 
 Delivery Date: ${order.deliveryDate.day}/${order.deliveryDate.month}/${order.deliveryDate.year}
 
-Total: \$${order.totalAmount.toStringAsFixed(0)}
-Advance: \$${order.advanceAmount.toStringAsFixed(0)}
-Balance: \$${order.remainingAmount.toStringAsFixed(0)}
+Total: $_currencySymbol${order.totalAmount.toStringAsFixed(0)}
+Advance: $_currencySymbol${order.advanceAmount.toStringAsFixed(0)}
+Balance: $_currencySymbol${order.remainingAmount.toStringAsFixed(0)}
 
 Thank you for choosing our tailoring services.
 ''';

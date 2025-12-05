@@ -84,6 +84,14 @@ class SecureStorageService {
     return await read('countryCode');
   }
 
+  Future<void> setCurrencySymbol(String currencySymbol) async {
+    await write('currencySymbol', currencySymbol);
+  }
+
+  Future<String?> getCurrencySymbol() async {
+    return await read('currencySymbol');
+  }
+
   /// Clear only auth session data (keeps user profile data like name and shop name)
   Future<void> clearAuthData() async {
     await delete('isLoggedIn');

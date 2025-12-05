@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/login_options_screen.dart';
-import '../../features/auth/screens/phone_login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
 import '../../features/customers/screens/add_customer_screen.dart';
 import '../../features/customers/screens/customer_detail_screen.dart';
@@ -49,11 +48,6 @@ final appRouterProvider = Provider<GoRouter>(
         path: AppRoutes.login,
         name: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.phoneLogin,
-        name: AppRoutes.phoneLogin,
-        builder: (context, state) => const PhoneLoginScreen(),
       ),
       GoRoute(
         path: AppRoutes.signup,

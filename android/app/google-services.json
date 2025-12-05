@@ -12,7 +12,20 @@
           "package_name": "com.abdulrahman.tailorx_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "61258568836-ar1cg219abuahnbvijhf3jtrbdaovtmh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.abdulrahman.tailorx_app",
+            "certificate_hash": "a5062ca5b3f28a1d5ef778ba6be0da76c7a8c5d0"
+          }
+        },
+        {
+          "client_id": "61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCdyJT3lyS9lNwJNUZAj1I-mT5NKTVGjAY"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

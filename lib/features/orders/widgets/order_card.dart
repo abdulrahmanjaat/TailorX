@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/helpers/currency_formatter.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -78,12 +79,22 @@ class OrderCard extends StatelessWidget {
                 children: [
                   Text('Remaining', style: AppTextStyles.caption),
                   const SizedBox(height: AppSizes.xs),
-                  Text(
-                    '\$${order.remainingAmount.toStringAsFixed(0)}',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
+                  FutureBuilder<String>(
+                    future: CurrencyFormatter.formatAmountWhole(
+                      order.remainingAmount,
                     ),
+                    builder: (context, snapshot) {
+                      final amount =
+                          snapshot.data ??
+                          '\$${order.remainingAmount.toStringAsFixed(0)}';
+                      return Text(
+                        amount,
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

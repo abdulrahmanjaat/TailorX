@@ -64,6 +64,8 @@ dependencies:
   # URL Launcher for calls, SMS, and WhatsApp
   url_launcher: ^6.3.1
   
+  # Google Sign-In
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:

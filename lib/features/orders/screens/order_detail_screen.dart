@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/helpers/currency_formatter.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
@@ -100,19 +101,39 @@ class OrderDetailScreen extends ConsumerWidget {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                Text(
-                                  'Qty: ${item.quantity} × \$${item.unitPrice.toStringAsFixed(2)}',
-                                  style: AppTextStyles.caption,
+                                FutureBuilder<String>(
+                                  future: CurrencyFormatter.formatAmount(
+                                    item.unitPrice,
+                                  ),
+                                  builder: (context, snapshot) {
+                                    final price =
+                                        snapshot.data ??
+                                        '\$${item.unitPrice.toStringAsFixed(2)}';
+                                    return Text(
+                                      'Qty: ${item.quantity} × $price',
+                                      style: AppTextStyles.caption,
+                                    );
+                                  },
                                 ),
                               ],
                             ),
                           ),
-                          Text(
-                            '\$${item.lineTotal.toStringAsFixed(2)}',
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                          FutureBuilder<String>(
+                            future: CurrencyFormatter.formatAmount(
+                              item.lineTotal,
                             ),
+                            builder: (context, snapshot) {
+                              final amount =
+                                  snapshot.data ??
+                                  '\$${item.lineTotal.toStringAsFixed(2)}';
+                              return Text(
+                                amount,
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -124,11 +145,19 @@ class OrderDetailScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Subtotal', style: AppTextStyles.bodyLarge),
-                      Text(
-                        '\$${order.subtotal.toStringAsFixed(2)}',
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                      FutureBuilder<String>(
+                        future: CurrencyFormatter.formatAmount(order.subtotal),
+                        builder: (context, snapshot) {
+                          final amount =
+                              snapshot.data ??
+                              '\$${order.subtotal.toStringAsFixed(2)}';
+                          return Text(
+                            amount,
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

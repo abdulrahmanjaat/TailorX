@@ -11,14 +11,26 @@ class AppButton extends StatelessWidget {
     required this.onPressed,
     this.isLoading = false,
     this.icon,
+    this.imageIcon,
     this.fullWidth = false,
+    this.backgroundColor,
+    this.textColor,
+    this.borderColor,
+    this.borderWidth,
+    this.boxShadow,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool isLoading;
   final IconData? icon;
+  final String? imageIcon;
   final bool fullWidth;
+  final Color? backgroundColor;
+  final Color? textColor;
+  final Color? borderColor;
+  final double? borderWidth;
+  final List<BoxShadow>? boxShadow;
 
   /// Gradient matching the app bar
   static Gradient get gradient => LinearGradient(
@@ -27,7 +39,7 @@ class AppButton extends StatelessWidget {
     end: Alignment.bottomRight,
   );
 
-  Color get _foregroundColor => AppColors.background;
+  Color get _foregroundColor => textColor ?? AppColors.background;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +68,15 @@ class AppButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[
+              if (imageIcon != null) ...[
+                Image.asset(
+                  imageIcon!,
+                  width: 20,
+                  height: 20,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: AppSizes.sm),
+              ] else if (icon != null) ...[
                 Icon(icon, size: 20, color: _foregroundColor),
                 const SizedBox(width: AppSizes.sm),
               ],
@@ -67,8 +87,13 @@ class AppButton extends StatelessWidget {
     final button = Container(
       height: 56,
       decoration: BoxDecoration(
-        gradient: gradient,
+        color: backgroundColor,
+        gradient: backgroundColor == null ? gradient : null,
         borderRadius: BorderRadius.circular(100),
+        border: borderColor != null
+            ? Border.all(color: borderColor!, width: borderWidth ?? 1.0)
+            : null,
+        boxShadow: boxShadow,
       ),
       child: Material(
         color: Colors.transparent,
