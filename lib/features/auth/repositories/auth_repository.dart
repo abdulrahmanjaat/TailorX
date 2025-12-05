@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/services/session_service.dart';
 
@@ -27,9 +28,19 @@ class AuthRepository {
     required String password,
     String? userName,
     String? shopName,
-    String? phoneNumber,
   }) async {
     try {
+      // Check if email already exists in Firestore
+      final emailQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email.toLowerCase().trim())
+          .limit(1)
+          .get();
+
+      if (emailQuery.docs.isNotEmpty) {
+        throw Exception('This email is already registered.');
+      }
+
       final userCredential = await firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -50,11 +61,6 @@ class AuthRepository {
         if (shopName != null && shopName.isNotEmpty) {
           await secureStorage.setShopName(shopName);
         }
-        // Store phone number for profile and login mapping
-        if (phoneNumber != null && phoneNumber.isNotEmpty) {
-          await secureStorage.write('phone', phoneNumber);
-          await secureStorage.write('phone_$phoneNumber', email);
-        }
         // Mark onboarding as seen after signup
         await secureStorage.setHasSeenOnboarding(true);
 
@@ -63,8 +69,7 @@ class AuthRepository {
           await _firestore.doc('users/$userId').set({
             'name': userName ?? '',
             'shopName': shopName ?? '',
-            'phone': phoneNumber ?? '',
-            'email': userEmail,
+            'email': userEmail.toLowerCase().trim(),
             'uid': userId,
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
@@ -79,31 +84,18 @@ class AuthRepository {
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
-      throw Exception('An unexpected error occurred: $e');
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
     }
   }
 
-  /// Sign in with email and password (or phone number)
+  /// Sign in with email and password
   Future<UserCredential> signIn({
-    required String emailOrPhone,
+    required String email,
     required String password,
   }) async {
     try {
-      // Check if input is phone number (starts with + or is all digits)
-      String email = emailOrPhone;
-      if (!emailOrPhone.contains('@')) {
-        // Likely a phone number, try to find associated email
-        final storedEmail = await secureStorage.read('phone_$emailOrPhone');
-        if (storedEmail != null && storedEmail.isNotEmpty) {
-          email = storedEmail;
-        } else {
-          // If phone not found, try as email anyway (will fail with proper error)
-          email = emailOrPhone;
-        }
-      }
-
       final userCredential = await firebaseAuth.signInWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
 
@@ -134,15 +126,11 @@ class AuthRepository {
             if (data != null) {
               final name = data['name'] as String? ?? '';
               final shopName = data['shopName'] as String? ?? '';
-              final phone = data['phone'] as String? ?? '';
               if (name.isNotEmpty) {
                 await secureStorage.setUserName(name);
               }
               if (shopName.isNotEmpty) {
                 await secureStorage.setShopName(shopName);
-              }
-              if (phone.isNotEmpty) {
-                await secureStorage.write('phone', phone);
               }
             }
           }
@@ -246,13 +234,129 @@ class AuthRepository {
     }
   }
 
+  /// Sign in with Google
+  Future<UserCredential> signInWithGoogle() async {
+    try {
+      // Use the web client ID from google-services.json
+      // This is the client_id from oauth_client with client_type: 3
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        // Use the web client ID from google-services.json
+        // Client ID: 61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com
+        serverClientId:
+            '61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com',
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        throw Exception('Google sign in was cancelled.');
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await firebaseAuth.signInWithCredential(
+        credential,
+      );
+
+      // Save user data to secure storage and Firestore
+      if (userCredential.user != null) {
+        final user = userCredential.user!;
+        final userId = user.uid;
+        final userEmail = user.email ?? '';
+        final userName = user.displayName ?? '';
+        final photoUrl = user.photoURL ?? '';
+
+        await secureStorage.setLoggedIn(true);
+        await secureStorage.setUserId(userId);
+        await secureStorage.setUserEmail(userEmail);
+        if (userName.isNotEmpty) {
+          await secureStorage.setUserName(userName);
+        }
+        // Mark onboarding as seen after login
+        await secureStorage.setHasSeenOnboarding(true);
+        // Start new session (for first fitting time tracking)
+        await SessionService.instance.startSession();
+
+        // Check if user document exists in Firestore
+        final userDoc = await _firestore.doc('users/$userId').get();
+
+        if (!userDoc.exists) {
+          // Create new user document if it doesn't exist
+          await _firestore.doc('users/$userId').set({
+            'name': userName,
+            'shopName': '',
+            'email': userEmail.toLowerCase().trim(),
+            'uid': userId,
+            'photoUrl': photoUrl,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } else {
+          // Update existing user document
+          final data = userDoc.data();
+          if (data != null) {
+            final name = data['name'] as String? ?? '';
+            final shopName = data['shopName'] as String? ?? '';
+            if (name.isNotEmpty) {
+              await secureStorage.setUserName(name);
+            }
+            if (shopName.isNotEmpty) {
+              await secureStorage.setShopName(shopName);
+            }
+            // Update email and photo if changed
+            await _firestore.doc('users/$userId').update({
+              'email': userEmail.toLowerCase().trim(),
+              'photoUrl': photoUrl,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
+
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      final errorString = e.toString();
+      // Provide helpful error message for common Google Sign-In setup issues
+      if (errorString.contains('PlatformException')) {
+        if (errorString.contains('sign_in_failed') ||
+            errorString.contains('ApiException')) {
+          throw Exception(
+            'Google Sign-In failed. Please ensure:\n'
+            '1. Google Play Services is installed and up to date on your device\n'
+            '2. You have an active internet connection\n'
+            '3. SHA-1 and SHA-256 fingerprints are added to Firebase Console\n'
+            '4. Android OAuth client is created in Firebase Console\n'
+            'Error: $errorString',
+          );
+        } else if (errorString.contains('google_sign_in')) {
+          throw Exception(
+            'Google Sign-In is not properly configured. Please ensure:\n'
+            '1. SHA-1 and SHA-256 fingerprints are added to Firebase Console\n'
+            '2. Google Sign-In is enabled in Firebase Authentication\n'
+            '3. A new google-services.json file is downloaded and added to android/app/\n'
+            'Error: $errorString',
+          );
+        }
+      }
+      throw Exception('An unexpected error occurred: $e');
+    }
+  }
+
   /// Handle Firebase Auth exceptions and return user-friendly messages
   String _handleAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'weak-password':
         return 'The password provided is too weak.';
       case 'email-already-in-use':
-        return 'An account already exists for that email.';
+        return 'This email is already registered.';
       case 'user-not-found':
         return 'No user found for that email.';
       case 'wrong-password':

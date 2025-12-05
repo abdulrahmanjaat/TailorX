@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
@@ -6,10 +7,42 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_buttons.dart';
+import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/auth_shell.dart';
+import '../services/auth_service.dart';
 
-class LoginOptionsScreen extends StatelessWidget {
+class LoginOptionsScreen extends ConsumerStatefulWidget {
   const LoginOptionsScreen({super.key});
+
+  @override
+  ConsumerState<LoginOptionsScreen> createState() => _LoginOptionsScreenState();
+}
+
+class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen> {
+  bool _isGoogleLoading = false;
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
+
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      await authRepository.signInWithGoogle();
+
+      if (mounted) {
+        SnackbarService.showSuccess(context, message: 'Welcome!');
+        context.go(AppRoutes.home);
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMessage = e.toString().replaceAll('Exception: ', '');
+        SnackbarService.showError(context, message: errorMessage);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,14 +162,29 @@ class LoginOptionsScreen extends StatelessWidget {
                 label: 'Login',
                 onPressed: () => context.go(AppRoutes.login),
                 fullWidth: true,
+                backgroundColor: Colors.white,
+                textColor: Colors.black,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF000000).withValues(alpha: 0.2),
+                    offset: const Offset(2, 2),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
-              // Continue with Phone Number button
+              // Login with Google button
               AppButton(
-                label: 'Continue with Phone Number',
-                onPressed: () => context.go(AppRoutes.phoneLogin),
-                icon: Icons.phone_outlined,
+                label: 'Login with Google',
+                onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
+                isLoading: _isGoogleLoading,
+                imageIcon: 'assets/icons/google_icon.png',
                 fullWidth: true,
+                backgroundColor: Colors.transparent,
+                textColor: const Color(0x9915161A), // #15161A99
+                borderColor: const Color(0x6615161A), // #15161A66
+                borderWidth: 1.0,
               ),
             ],
           ),

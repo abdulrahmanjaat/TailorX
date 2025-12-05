@@ -7,7 +7,6 @@ import '../../../core/middleware/auth_middleware.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared/services/location_service.dart';
-import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../../shared/widgets/aurora_background.dart';
 import '../controllers/splash_controller.dart';
@@ -107,13 +106,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     try {
       // Request location permission and get country code
       // This will show the system permission dialog if needed
+      // getCountryCode() automatically stores both country code and currency symbol
       final countryCode = await LocationService.instance.getCountryCode();
       if (countryCode != null && mounted) {
-        await SecureStorageService.instance.setCountryCode(countryCode);
+        // Country code and currency symbol are already stored by getCountryCode()
+        // But ensure currency is set even if country code was already stored
+        await LocationService.instance.ensureCurrencySymbol();
+        debugPrint(
+          'Location and currency setup complete. Country: $countryCode',
+        );
+      } else {
+        // If location not available, ensure currency is set from existing country code
+        await LocationService.instance.ensureCurrencySymbol();
       }
     } catch (e) {
       // Silently handle errors - app will work without location
       debugPrint('Location service error: $e');
+      // Still try to ensure currency from existing country code
+      await LocationService.instance.ensureCurrencySymbol();
     }
   }
 

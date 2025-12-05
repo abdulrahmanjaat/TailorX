@@ -14,7 +14,7 @@ class OrderStatusBadge extends StatelessWidget {
       case OrderStatus.newOrder:
         return Colors.green.withValues(alpha: 0.15);
       case OrderStatus.inProgress:
-        return Colors.black.withValues(alpha: 0.15);
+        return Colors.orange.withValues(alpha: 0.15);
       case OrderStatus.completed:
         return Colors.red.withValues(alpha: 0.15);
     }
@@ -25,7 +25,7 @@ class OrderStatusBadge extends StatelessWidget {
       case OrderStatus.newOrder:
         return Colors.green;
       case OrderStatus.inProgress:
-        return Colors.black;
+        return Colors.orange;
       case OrderStatus.completed:
         return Colors.red;
     }

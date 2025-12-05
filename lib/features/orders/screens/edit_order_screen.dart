@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/helpers/currency_formatter.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_inputs.dart';
@@ -32,15 +33,26 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
 
   OrderModel? _order;
   DateTime? _deliveryDate;
+  String _currencySymbol = '\$'; // Default, will be updated
 
   @override
   void initState() {
     super.initState();
     _totalAmountController.addListener(() => setState(() {}));
     _advanceAmountController.addListener(() => setState(() {}));
+    _loadCurrencySymbol();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadOrder();
     });
+  }
+
+  Future<void> _loadCurrencySymbol() async {
+    final symbol = await CurrencyFormatter.getCurrencySymbol();
+    if (mounted) {
+      setState(() {
+        _currencySymbol = symbol;
+      });
+    }
   }
 
   void _loadOrder() {
@@ -231,7 +243,7 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
                 labelText: 'Total Amount',
                 hintText: 'Enter total amount',
                 keyboardType: TextInputType.number,
-                prefix: const Icon(Icons.attach_money),
+                prefixText: '$_currencySymbol: ',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Enter total amount';
@@ -247,7 +259,7 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
                 labelText: 'Advance Amount',
                 hintText: 'Enter advance amount',
                 keyboardType: TextInputType.number,
-                prefix: const Icon(Icons.payments_outlined),
+                prefixText: '$_currencySymbol: ',
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Enter advance amount';
@@ -271,7 +283,7 @@ class _EditOrderScreenState extends ConsumerState<EditOrderScreen> {
                     children: [
                       Text('Balance', style: AppTextStyles.bodyLarge),
                       Text(
-                        '\$${(double.tryParse(_totalAmountController.text) ?? 0) - (double.tryParse(_advanceAmountController.text) ?? 0)}',
+                        '$_currencySymbol${(double.tryParse(_totalAmountController.text) ?? 0) - (double.tryParse(_advanceAmountController.text) ?? 0)}',
                         style: AppTextStyles.bodyLarge.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,

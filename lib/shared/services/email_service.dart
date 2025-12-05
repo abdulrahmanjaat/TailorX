@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'currency_service.dart';
+import 'secure_storage_service.dart';
 
 /// Email service for sending receipts to customers
 ///
@@ -31,10 +33,16 @@ class EmailService {
     String? phone,
   }) async {
     try {
+      // Get currency symbol
+      final countryCode = await SecureStorageService.instance.getCountryCode();
+      final currencySymbol = CurrencyService.instance.getCurrencySymbol(
+        countryCode,
+      );
+
       // Build email body text
       final itemsText = orderItems
           .map((item) {
-            return '${item['orderType']} - Qty: ${item['quantity']} × \$${item['unitPrice'].toStringAsFixed(2)} = \$${item['lineTotal'].toStringAsFixed(2)}';
+            return '${item['orderType']} - Qty: ${item['quantity']} × $currencySymbol${item['unitPrice'].toStringAsFixed(2)} = $currencySymbol${item['lineTotal'].toStringAsFixed(2)}';
           })
           .join('\n');
 
@@ -57,9 +65,9 @@ Delivery Date: ${deliveryDate.day}/${deliveryDate.month}/${deliveryDate.year}
 Order Items:
 $itemsText
 
-Subtotal: \$${subtotal.toStringAsFixed(2)}
-Advance: \$${advanceAmount.toStringAsFixed(2)}
-Remaining: \$${remainingAmount.toStringAsFixed(2)}
+Subtotal: $currencySymbol${subtotal.toStringAsFixed(2)}
+Advance: $currencySymbol${advanceAmount.toStringAsFixed(2)}
+Remaining: $currencySymbol${remainingAmount.toStringAsFixed(2)}
 
 ${notes != null && notes.isNotEmpty ? 'Notes: $notes\n' : ''}
 Thank you for choosing our tailoring services.

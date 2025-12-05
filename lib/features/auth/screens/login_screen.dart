@@ -98,7 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final email = _emailController.text.trim();
 
       await authRepository.signIn(
-        emailOrPhone: email,
+        email: email,
         password: _passwordController.text,
       );
 

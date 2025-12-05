@@ -82,7 +82,6 @@ class AuthMiddleware {
       if (isLoggedIn &&
           (currentLocation == AppRoutes.login ||
               currentLocation == AppRoutes.loginOptions ||
-              currentLocation == AppRoutes.phoneLogin ||
               currentLocation == AppRoutes.signup ||
               currentLocation == AppRoutes.onboarding)) {
         return AppRoutes.home;

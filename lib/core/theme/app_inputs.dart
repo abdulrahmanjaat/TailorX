@@ -11,6 +11,7 @@ class AppInputField extends StatelessWidget {
     this.hintText,
     this.labelText,
     this.prefix,
+    this.prefixText,
     this.suffix,
     this.keyboardType,
     this.obscureText = false,
@@ -27,6 +28,7 @@ class AppInputField extends StatelessWidget {
   final String? hintText;
   final String? labelText;
   final Widget? prefix;
+  final String? prefixText;
   final Widget? suffix;
   final TextInputType? keyboardType;
   final bool obscureText;
@@ -67,10 +69,17 @@ class AppInputField extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
             prefixIcon: prefix,
+            prefixText: prefixText,
+            prefixStyle: prefixText != null
+                ? AppTextStyles.input.copyWith(
+                    color: AppColors.dark.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w600,
+                  )
+                : null,
             suffixIcon: suffix,
             filled: true,
             fillColor: AppColors.background,
-            contentPadding: const EdgeInsets.symmetric(
+            contentPadding: EdgeInsets.symmetric(
               horizontal: AppSizes.md,
               vertical: AppSizes.md,
             ),
