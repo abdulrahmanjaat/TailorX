@@ -37,7 +37,8 @@ class _TailorBottomNavState extends ConsumerState<TailorBottomNav> {
     if (currentLocation == targetRoute) return;
 
     setState(() => _currentIndex = index);
-    context.push(targetRoute);
+    // Use go instead of push for bottom nav to avoid route stacking
+    context.go(targetRoute);
   }
 
   @override

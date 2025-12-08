@@ -81,31 +81,6 @@ class CustomerCard extends StatelessWidget {
                     style: AppTextStyles.titleLarge,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSizes.xs),
-                  GestureDetector(
-                    onTap: () => _handlePhoneTap(context),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.phone_outlined,
-                          size: AppSizes.iconSm,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: AppSizes.xs),
-                        Flexible(
-                          child: Text(
-                            customer.phone,
-                            style: AppTextStyles.bodyRegular.copyWith(
-                              color: AppColors.primary,
-                              decoration: TextDecoration.underline,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),

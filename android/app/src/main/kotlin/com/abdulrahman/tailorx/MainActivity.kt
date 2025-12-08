@@ -1,4 +1,4 @@
-package com.abdulrahman.tailorx_app
+package com.abdulrahman.tailorx
 
 import android.content.ContentValues
 import android.media.MediaScannerConnection
@@ -13,7 +13,7 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.abdulrahman.tailorx_app/gallery"
+    private val CHANNEL = "com.abdulrahman.tailorx/gallery"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

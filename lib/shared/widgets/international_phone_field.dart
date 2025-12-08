@@ -136,6 +136,13 @@ class InternationalPhoneFieldState extends State<InternationalPhoneField> {
     return '${_selectedCountry?.dialCode} $phoneNumber';
   }
 
+  /// Public getter to get the full phone number with country code
+  String get fullPhoneNumber {
+    final phoneNumber = widget.controller.text.trim();
+    if (phoneNumber.isEmpty) return '';
+    return '${_selectedCountry?.dialCode} $phoneNumber';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
