@@ -1,28 +1,28 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
-  "storage": {
-    "rules": "storage.rules"
-  },
-  "flutter": {
-    "platforms": {
-      "android": {
-        "default": {
-          "projectId": "tailorx-jaat001",
-          "appId": "1:61258568836:android:bde014d18d558560ee1ed1",
-          "fileOutput": "android/app/google-services.json"
+    "firestore": {
+        "rules": "firestore.rules"
+    },
+    "storage": {
+        "rules": "storage.rules"
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "tailorx-jaat001",
+                    "appId": "1:61258568836:android:e0bb902a071fd43cee1ed1",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "tailorx-jaat001",
+                    "configurations": {
+                        "android": "1:61258568836:android:e0bb902a071fd43cee1ed1",
+                        "web": "1:61258568836:web:8f9fcf5d4ae33216ee1ed1"
+                    }
+                }
+            }
         }
-      },
-      "dart": {
-        "lib/firebase_options.dart": {
-          "projectId": "tailorx-jaat001",
-          "configurations": {
-            "android": "1:61258568836:android:bde014d18d558560ee1ed1",
-            "web": "1:61258568836:web:0740cba7ccbbcd0cee1ed1"
-          }
-        }
-      }
     }
-  }
 }

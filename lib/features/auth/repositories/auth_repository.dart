@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart' show FirebaseException;
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../shared/services/secure_storage_service.dart';
@@ -28,19 +29,11 @@ class AuthRepository {
     required String password,
     String? userName,
     String? shopName,
+    String? phone,
   }) async {
     try {
-      // Check if email already exists in Firestore
-      final emailQuery = await _firestore
-          .collection('users')
-          .where('email', isEqualTo: email.toLowerCase().trim())
-          .limit(1)
-          .get();
-
-      if (emailQuery.docs.isNotEmpty) {
-        throw Exception('This email is already registered.');
-      }
-
+      // Create user account - Firebase Auth will automatically prevent duplicate emails
+      // by throwing 'email-already-in-use' error if the email exists
       final userCredential = await firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -65,17 +58,37 @@ class AuthRepository {
         await secureStorage.setHasSeenOnboarding(true);
 
         // Save profile to Firestore with all signup data
+        // Note: User is authenticated after createUserWithEmailAndPassword
+        // so Firestore write should succeed. If it fails, we log but don't fail signup.
         try {
-          await _firestore.doc('users/$userId').set({
-            'name': userName ?? '',
-            'shopName': shopName ?? '',
-            'email': userEmail.toLowerCase().trim(),
-            'uid': userId,
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          // Ensure user is authenticated and get fresh token
+          final currentUser = firebaseAuth.currentUser;
+          if (currentUser != null) {
+            // Force token refresh to ensure Firestore recognizes the auth
+            await currentUser.getIdToken(true);
+
+            await _firestore.doc('users/$userId').set({
+              'name': userName ?? '',
+              'shopName': shopName ?? '',
+              'email': userEmail.toLowerCase().trim(),
+              'phone': phone ?? '',
+              'uid': userId,
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } else {
+            debugPrint(
+              'Warning: User not authenticated when trying to save to Firestore',
+            );
+          }
+        } on FirebaseException catch (e) {
+          // Log Firestore errors but don't fail signup
+          // The user account is already created in Firebase Auth
+          debugPrint(
+            'Firestore error saving profile: ${e.code} - ${e.message}',
+          );
         } catch (e) {
-          // Log error but don't fail signup if Firestore save fails
+          // Catch any other errors
           debugPrint('Error saving profile to Firestore: $e');
         }
       }
@@ -157,7 +170,20 @@ class AuthRepository {
   /// to their UID. This is the correct behavior for data persistence.
   Future<void> signOut() async {
     try {
+      // Disconnect Google Sign-In to ensure account picker shows on next login
+      final googleSignIn = GoogleSignIn(
+        serverClientId:
+            '61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com',
+      );
+
+      // Sign out from Google Sign-In
+      await googleSignIn.signOut();
+      // Disconnect to clear cached account
+      await googleSignIn.disconnect();
+
+      // Sign out from Firebase Auth
       await firebaseAuth.signOut();
+
       // Clear auth data from secure storage (local only)
       // NOTE: Firestore data is NOT deleted - it remains under users/{uid}/...
       // This ensures data persistence across login sessions
@@ -235,17 +261,27 @@ class AuthRepository {
   }
 
   /// Sign in with Google
+  ///
+  /// Always shows the account picker by creating a fresh GoogleSignIn instance
+  /// and ensuring any previous session is cleared before signing in.
   Future<UserCredential> signInWithGoogle() async {
     try {
-      // Use the web client ID from google-services.json
-      // This is the client_id from oauth_client with client_type: 3
+      // Create a fresh GoogleSignIn instance to ensure account picker always shows
+      // forceCodeForRefreshToken: true ensures account selection dialog appears
       final GoogleSignIn googleSignIn = GoogleSignIn(
+        forceCodeForRefreshToken: true,
         scopes: ['email', 'profile'],
         // Use the web client ID from google-services.json
         // Client ID: 61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com
         serverClientId:
             '61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com',
       );
+
+      // Ensure any previous Google Sign-In session is cleared
+      // This ensures the account picker always shows
+      await googleSignIn.signOut();
+
+      // This will always show the account picker
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {

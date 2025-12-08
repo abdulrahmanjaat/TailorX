@@ -121,10 +121,26 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
   }
 
   Widget _buildChip(String label) {
+    Color? selectedColor;
+    switch (label) {
+      case 'New':
+        selectedColor = AppColors.success; // Green
+        break;
+      case 'In Progress':
+        selectedColor = Colors.orange; // Orange
+        break;
+      case 'Completed':
+        selectedColor = AppColors.error; // Red
+        break;
+      default:
+        selectedColor = null; // Use default primary color for 'All'
+    }
+
     return CustomFilterChip(
       label: label,
       isSelected: _selectedFilter == label,
       onTap: () => setState(() => _selectedFilter = label),
+      selectedColor: selectedColor,
     );
   }
 }

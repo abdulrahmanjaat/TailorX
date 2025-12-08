@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/phone_number.dart';
 
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/routes/app_routes.dart';
@@ -11,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_inputs.dart';
 import '../../../shared/services/snackbar_service.dart';
+import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/widgets/auth_shell.dart';
 import '../services/auth_service.dart';
 
@@ -25,8 +28,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _organizationController = TextEditingController();
+  final _phoneController = TextEditingController();
+  PhoneNumber? _phoneNumber;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String? _initialCountryCode;
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -40,6 +46,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     // Add listeners for real-time validation
     _emailController.addListener(_validateEmail);
     _passwordController.addListener(_validatePassword);
+    _loadCountryCode();
+  }
+
+  Future<void> _loadCountryCode() async {
+    final countryCode = await SecureStorageService.instance.getCountryCode();
+    if (mounted) {
+      setState(() {
+        _initialCountryCode = countryCode ?? 'PK'; // Default to Pakistan
+      });
+    }
   }
 
   void _validateEmail() {
@@ -86,6 +102,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   void dispose() {
     _nameController.dispose();
     _organizationController.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -99,11 +116,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     try {
       final authRepository = ref.read(authRepositoryProvider);
 
+      // Get full phone number with country code from the phone field
+      // completeNumber includes country code (e.g., +923001234567)
+      final phone =
+          _phoneNumber?.completeNumber ??
+          (_phoneController.text.isNotEmpty
+              ? _phoneController.text.trim()
+              : '');
+
       await authRepository.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         userName: _nameController.text.trim(),
         shopName: _organizationController.text.trim(),
+        phone: phone,
       );
 
       if (mounted) {
@@ -183,6 +209,82 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     Icons.store_outlined,
                     color: AppColors.dark.withValues(alpha: 0.5),
                   ),
+                ),
+                const SizedBox(height: AppSizes.lg),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: AppSizes.xs),
+                    _initialCountryCode == null
+                        ? const SizedBox(
+                            height: 56,
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        : IntlPhoneField(
+                            controller: _phoneController,
+                            decoration: InputDecoration(
+                              hintText: 'Enter phone number',
+                              hintStyle: AppTextStyles.inputHint.copyWith(
+                                color: AppColors.dark.withValues(alpha: 0.6),
+                              ),
+                              labelStyle: TextStyle(
+                                color: AppColors.dark,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              filled: true,
+                              fillColor: AppColors.background,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: AppSizes.md,
+                                vertical: AppSizes.md,
+                              ),
+                              constraints: const BoxConstraints(minHeight: 56),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.borderGray,
+                                  width: 1,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.borderGray,
+                                  width: 1,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.error,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            initialCountryCode: _initialCountryCode ?? 'PK',
+                            onChanged: (phone) {
+                              setState(() {
+                                _phoneNumber = phone;
+                              });
+                            },
+                            validator: (phone) {
+                              if (phone == null || phone.number.isEmpty) {
+                                return 'Phone number is required';
+                              }
+                              // Validate minimum length (10 digits after country code)
+                              if (phone.number.length < 10) {
+                                return 'Phone number must be at least 10 digits';
+                              }
+                              return null;
+                            },
+                          ),
+                  ],
                 ),
                 const SizedBox(height: AppSizes.lg),
                 AppInputField(

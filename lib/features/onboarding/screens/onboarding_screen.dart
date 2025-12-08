@@ -61,16 +61,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final state = ref.watch(onboardingControllerProvider);
     final controller = ref.read(onboardingControllerProvider.notifier);
 
-    ref.listen<OnboardingState>(onboardingControllerProvider, (
-      previous,
-      next,
-    ) async {
+    ref.listen<OnboardingState>(onboardingControllerProvider, (previous, next) {
       if (next.completed && previous?.completed != true) {
-        // Mark onboarding as seen
-        await SecureStorageService.instance.setHasSeenOnboarding(true);
-        if (context.mounted) {
-          context.go(AppRoutes.loginOptions);
-        }
+        // Mark onboarding as seen asynchronously without blocking navigation
+        SecureStorageService.instance.setHasSeenOnboarding(true).then((_) {
+          if (context.mounted) {
+            context.go(AppRoutes.loginOptions);
+          }
+        });
         return;
       }
       // Only animate if initialized and PageController is ready
@@ -81,8 +79,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           next.index >= 0) {
         _pageController.animateToPage(
           next.index,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
         );
       }
     });

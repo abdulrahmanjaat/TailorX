@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCdyJT3lyS9lNwJNUZAj1I-mT5NKTVGjAY',
-    appId: '1:61258568836:android:bde014d18d558560ee1ed1',
+    appId: '1:61258568836:android:e0bb902a071fd43cee1ed1',
     messagingSenderId: '61258568836',
     projectId: 'tailorx-jaat001',
     storageBucket: 'tailorx-jaat001.firebasestorage.app',
@@ -60,12 +60,12 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyCXFxaKZFQelRqxltDiYvTFJm1itFRFW_E',
-    appId: '1:61258568836:web:0740cba7ccbbcd0cee1ed1',
+    appId: '1:61258568836:web:8f9fcf5d4ae33216ee1ed1',
     messagingSenderId: '61258568836',
     projectId: 'tailorx-jaat001',
     authDomain: 'tailorx-jaat001.firebaseapp.com',
     storageBucket: 'tailorx-jaat001.firebasestorage.app',
-    measurementId: 'G-P414KG07GN',
+    measurementId: 'G-ZQTGTXE264',
   );
 
 }

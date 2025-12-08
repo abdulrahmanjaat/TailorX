@@ -38,7 +38,6 @@ class OrderCard extends StatelessWidget {
                         order.customerName,
                         style: AppTextStyles.titleLarge.copyWith(
                           color: AppColors.primary,
-                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),

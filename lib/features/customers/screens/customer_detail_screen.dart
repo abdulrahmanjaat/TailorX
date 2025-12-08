@@ -60,12 +60,13 @@ class CustomerDetailScreen extends ConsumerWidget {
 
     return AppScaffold(
       title: 'Customer Details',
-      padding: const EdgeInsets.all(AppSizes.lg),
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
       floatingActionButton: _buildFloatingActionButtons(context, customer),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: AppSizes.lg),
             _HeaderCard(customer: customer),
             const SizedBox(height: AppSizes.lg),
             _SectionHeader(title: 'Measurements by Type'),
@@ -101,23 +102,35 @@ class CustomerDetailScreen extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        FloatingActionButton(
+        FloatingActionButton.extended(
+          heroTag: 'add_order',
+          onPressed: () =>
+              context.push('${AppRoutes.addOrder}?customerId=${customer.id}'),
+          backgroundColor: AppColors.primary,
+          icon: const Icon(
+            Icons.add_shopping_cart,
+            color: AppColors.background,
+          ),
+          label: Text(
+            'Create order',
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: AppColors.background,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSizes.md),
+        FloatingActionButton.extended(
           heroTag: 'add_measurement',
           onPressed: () => context.push(
             '${AppRoutes.addMeasurement}?customerId=${customer.id}',
           ),
           backgroundColor: AppColors.primary,
-          child: const Icon(Icons.straighten, color: AppColors.background),
-        ),
-        const SizedBox(height: AppSizes.md),
-        FloatingActionButton(
-          heroTag: 'add_order',
-          onPressed: () =>
-              context.push('${AppRoutes.addOrder}?customerId=${customer.id}'),
-          backgroundColor: AppColors.secondary,
-          child: const Icon(
-            Icons.add_shopping_cart,
-            color: AppColors.background,
+          icon: const Icon(Icons.straighten, color: AppColors.background),
+          label: Text(
+            'Add measurement',
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: AppColors.background,
+            ),
           ),
         ),
       ],

@@ -387,7 +387,7 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
       final pngBytes = await _convertReceiptToImageBytes();
 
       // Save using native method channel which handles all Android versions
-      const platform = MethodChannel('com.abdulrahman.tailorx_app/gallery');
+      const platform = MethodChannel('com.abdulrahman.tailorx/gallery');
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = 'receipt_$timestamp.png';
 
@@ -456,7 +456,7 @@ class _OrderReceiptScreenState extends ConsumerState<OrderReceiptScreen> {
   /// Get Android SDK version
   Future<int?> _getAndroidVersion() async {
     try {
-      const platform = MethodChannel('com.abdulrahman.tailorx_app/gallery');
+      const platform = MethodChannel('com.abdulrahman.tailorx/gallery');
       final version = await platform.invokeMethod('getAndroidVersion');
       return version as int?;
     } catch (e) {

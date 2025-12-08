@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -25,6 +26,75 @@ import '../../features/settings/screens/terms_privacy_screen.dart';
 import '../../features/splash/screens/splash_screen.dart';
 import 'app_routes.dart';
 
+/// Creates a smooth page transition for navigation
+Page<T> _buildPageWithTransition<T extends Object?>(
+  Widget child,
+  GoRouterState state,
+) {
+  return CustomTransitionPage<T>(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder:
+        (
+          BuildContext context,
+          Animation<double> animation,
+          Animation<double> secondaryAnimation,
+          Widget child,
+        ) {
+          // Use fade and slide transition for smooth navigation
+          const begin = Offset(0.0, 0.02);
+          const end = Offset.zero;
+          const curve = Curves.easeOutCubic;
+
+          var slideAnimation = Tween(
+            begin: begin,
+            end: end,
+          ).animate(CurvedAnimation(parent: animation, curve: curve));
+
+          var fadeAnimation = Tween(
+            begin: 0.0,
+            end: 1.0,
+          ).animate(CurvedAnimation(parent: animation, curve: curve));
+
+          return FadeTransition(
+            opacity: fadeAnimation,
+            child: SlideTransition(position: slideAnimation, child: child),
+          );
+        },
+    transitionDuration: const Duration(milliseconds: 250),
+  );
+}
+
+/// Custom page with transition
+class CustomTransitionPage<T> extends Page<T> {
+  final Widget child;
+  final Widget Function(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  )
+  transitionsBuilder;
+  final Duration transitionDuration;
+
+  const CustomTransitionPage({
+    required super.key,
+    required this.child,
+    required this.transitionsBuilder,
+    this.transitionDuration = const Duration(milliseconds: 300),
+  });
+
+  @override
+  Route<T> createRoute(BuildContext context) {
+    return PageRouteBuilder<T>(
+      settings: this,
+      transitionDuration: transitionDuration,
+      pageBuilder: (context, animation, secondaryAnimation) => child,
+      transitionsBuilder: transitionsBuilder,
+    );
+  }
+}
+
 final appRouterProvider = Provider<GoRouter>(
   (ref) => GoRouter(
     initialLocation: AppRoutes.splash,
@@ -32,126 +102,158 @@ final appRouterProvider = Provider<GoRouter>(
       GoRoute(
         path: AppRoutes.splash,
         name: AppRoutes.splash,
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const SplashScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.onboarding,
         name: AppRoutes.onboarding,
-        builder: (context, state) => const OnboardingScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const OnboardingScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.loginOptions,
         name: AppRoutes.loginOptions,
-        builder: (context, state) => const LoginOptionsScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const LoginOptionsScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.login,
         name: AppRoutes.login,
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const LoginScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.signup,
         name: AppRoutes.signup,
-        builder: (context, state) => const SignupScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const SignupScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.home,
         name: AppRoutes.home,
-        builder: (context, state) => const HomeScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const HomeScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.profile,
         name: AppRoutes.profile,
-        builder: (context, state) => const ProfileScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const ProfileScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.editProfile,
         name: AppRoutes.editProfile,
-        builder: (context, state) => const EditProfileScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const EditProfileScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.settings,
         name: AppRoutes.settings,
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const SettingsScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.termsPrivacy,
         name: AppRoutes.termsPrivacy,
-        builder: (context, state) => const TermsPrivacyScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const TermsPrivacyScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.notifications,
         name: AppRoutes.notifications,
-        builder: (context, state) => const NotificationScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const NotificationScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.ordersList,
         name: AppRoutes.ordersList,
-        builder: (context, state) => const OrdersListScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const OrdersListScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.addOrder,
         name: AppRoutes.addOrder,
-        builder: (context, state) => const AddOrderScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const AddOrderScreen(), state),
       ),
       GoRoute(
         path: '${AppRoutes.editOrder}/:orderId',
         name: AppRoutes.editOrder,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final orderId = state.pathParameters['orderId'] ?? '';
-          return EditOrderScreen(orderId: orderId);
+          return _buildPageWithTransition(
+            EditOrderScreen(orderId: orderId),
+            state,
+          );
         },
       ),
       GoRoute(
         path: '${AppRoutes.orderDetail}/:orderId',
         name: AppRoutes.orderDetail,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final orderId = state.pathParameters['orderId'] ?? '';
-          return OrderDetailScreen(orderId: orderId);
+          return _buildPageWithTransition(
+            OrderDetailScreen(orderId: orderId),
+            state,
+          );
         },
       ),
       GoRoute(
         path: '${AppRoutes.orderReceipt}/:orderId',
         name: AppRoutes.orderReceipt,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final orderId = state.pathParameters['orderId'] ?? '';
-          return OrderReceiptScreen(orderId: orderId);
+          return _buildPageWithTransition(
+            OrderReceiptScreen(orderId: orderId),
+            state,
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.customersList,
         name: AppRoutes.customersList,
-        builder: (context, state) => const CustomersListScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const CustomersListScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.addCustomer,
         name: AppRoutes.addCustomer,
-        builder: (context, state) => const AddCustomerScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const AddCustomerScreen(), state),
       ),
       GoRoute(
         path: '${AppRoutes.customerDetail}/:customerId',
         name: AppRoutes.customerDetail,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final customerId = state.pathParameters['customerId'] ?? '';
-          return CustomerDetailScreen(customerId: customerId);
+          return _buildPageWithTransition(
+            CustomerDetailScreen(customerId: customerId),
+            state,
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.measurementsList,
         name: AppRoutes.measurementsList,
-        builder: (context, state) => const MeasurementsListScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const MeasurementsListScreen(), state),
       ),
       GoRoute(
         path: AppRoutes.addMeasurement,
         name: AppRoutes.addMeasurement,
-        builder: (context, state) => const AddMeasurementScreen(),
+        pageBuilder: (context, state) =>
+            _buildPageWithTransition(const AddMeasurementScreen(), state),
       ),
       GoRoute(
         path: '${AppRoutes.measurementsDetail}/:measurementId',
         name: AppRoutes.measurementsDetail,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final measurementId = state.pathParameters['measurementId'] ?? '';
-          return MeasurementDetailScreen(measurementId: measurementId);
+          return _buildPageWithTransition(
+            MeasurementDetailScreen(measurementId: measurementId),
+            state,
+          );
         },
       ),
     ],

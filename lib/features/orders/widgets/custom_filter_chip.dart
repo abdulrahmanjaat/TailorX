@@ -10,11 +10,13 @@ class CustomFilterChip extends StatelessWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.selectedColor,
   });
 
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final Color? selectedColor;
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +29,21 @@ class CustomFilterChip extends StatelessWidget {
           vertical: AppSizes.sm,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
+          color: isSelected
+              ? (selectedColor ?? AppColors.primary)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(AppSizes.lg),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.surface,
+            color: isSelected
+                ? (selectedColor ?? AppColors.primary)
+                : AppColors.surface,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.2),
+                    color: (selectedColor ?? AppColors.primary).withValues(
+                      alpha: 0.2,
+                    ),
                     blurRadius: 14,
                     offset: const Offset(0, 6),
                   ),
