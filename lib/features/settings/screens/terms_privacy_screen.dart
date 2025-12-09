@@ -111,7 +111,7 @@ class TermsPrivacyScreen extends StatelessWidget {
                   const SizedBox(height: AppSizes.sm),
                   Text(
                     'If you have questions about these terms or our privacy practices, '
-                    'please contact us at support@tailorx.com',
+                    'please contact us at tailorxteam@gmail.com',
                     style: AppTextStyles.bodyRegular,
                   ),
                 ],

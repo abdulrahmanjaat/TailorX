@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/services/session_service.dart';
+import '../../../shared/services/location_service.dart';
+import '../../../shared/services/currency_service.dart';
 
 class AuthRepository {
   AuthRepository({
@@ -16,6 +18,42 @@ class AuthRepository {
   final FirebaseAuth firebaseAuth;
   final SecureStorageService secureStorage;
   final FirebaseFirestore _firestore;
+
+  /// Update currency symbol based on detected country:
+  /// 1) Provided countryCode (preferred)
+  /// 2) Phone number dial code (best-effort)
+  /// 3) Location service fallback
+  Future<void> _updateCurrency({String? countryCode, String? phone}) async {
+    try {
+      String? finalCountry = countryCode;
+
+      // If no countryCode provided, try inferring from phone
+      if ((finalCountry == null || finalCountry.isEmpty) && phone != null) {
+        final inferred = CurrencyService.instance.inferCountryCodeFromPhone(
+          phone,
+        );
+        if (inferred != null && inferred.isNotEmpty) {
+          finalCountry = inferred;
+        }
+      }
+
+      // If still no country, try location service (may prompt permission)
+      if (finalCountry == null || finalCountry.isEmpty) {
+        finalCountry = await LocationService.instance.getCountryCode();
+      }
+
+      if (finalCountry != null && finalCountry.isNotEmpty) {
+        await secureStorage.setCountryCode(finalCountry);
+        final symbol = CurrencyService.instance.getCurrencySymbol(finalCountry);
+        await secureStorage.setCurrencySymbol(symbol);
+      } else {
+        // As a last resort, ensure currency symbol from existing stored country
+        await LocationService.instance.ensureCurrencySymbol();
+      }
+    } catch (e) {
+      debugPrint('Currency update failed: $e');
+    }
+  }
 
   /// Get current user
   User? get currentUser => firebaseAuth.currentUser;
@@ -44,6 +82,17 @@ class AuthRepository {
         final user = userCredential.user!;
         final userId = user.uid;
         final userEmail = user.email ?? email;
+
+        // CRITICAL: Clear old profile data before setting new user data
+        // This prevents showing cached data from previous user when switching accounts
+        final previousUserId = await secureStorage.getUserId();
+        if (previousUserId != null && previousUserId != userId) {
+          // Different user - clear all old profile data
+          await secureStorage.clearProfileData();
+        } else if (previousUserId == null) {
+          // First time signup - ensure clean state
+          await secureStorage.clearProfileData();
+        }
 
         await secureStorage.setLoggedIn(true);
         await secureStorage.setUserId(userId);
@@ -93,6 +142,12 @@ class AuthRepository {
         }
       }
 
+      // Update currency symbol based on country/phone if provided
+      await _updateCurrency(
+        countryCode: await secureStorage.getCountryCode(),
+        phone: phone,
+      );
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
@@ -117,10 +172,13 @@ class AuthRepository {
         final currentUserId = userCredential.user!.uid;
         final storedUserId = await secureStorage.getUserId();
 
-        // If logging in with a different user, clear old user's profile data
+        // CRITICAL: Always clear old profile data when switching users
+        // This prevents showing cached data from a different account
         if (storedUserId != null && storedUserId != currentUserId) {
-          await secureStorage.delete('userName');
-          await secureStorage.delete('shopName');
+          await secureStorage.clearProfileData();
+        } else if (storedUserId == null) {
+          // First time login - ensure clean state
+          await secureStorage.clearProfileData();
         }
 
         await secureStorage.setLoggedIn(true);
@@ -131,7 +189,8 @@ class AuthRepository {
         // Start new session (for first fitting time tracking)
         await SessionService.instance.startSession();
 
-        // Fetch and sync profile from Firestore after login
+        // Fetch and sync fresh profile from Firestore after login
+        // CRITICAL: Always fetch from Firestore based on current UID
         try {
           final profileDoc = await _firestore.doc('users/$currentUserId').get();
           if (profileDoc.exists) {
@@ -139,17 +198,54 @@ class AuthRepository {
             if (data != null) {
               final name = data['name'] as String? ?? '';
               final shopName = data['shopName'] as String? ?? '';
-              if (name.isNotEmpty) {
-                await secureStorage.setUserName(name);
-              }
-              if (shopName.isNotEmpty) {
-                await secureStorage.setShopName(shopName);
+              final phone = data['phone'] as String? ?? '';
+              // Always overwrite with Firestore data to ensure consistency
+              await secureStorage.setUserName(name);
+              await secureStorage.setShopName(shopName);
+              if (phone.isNotEmpty) {
+                await secureStorage.write('phone', phone);
+              } else {
+                // Clear phone if not in Firestore
+                await secureStorage.delete('phone');
               }
             }
+          } else {
+            // CRITICAL: No Firestore profile exists - clear all profile data
+            // This prevents showing old cached data from previous account
+            await secureStorage.delete('userName');
+            await secureStorage.delete('shopName');
+            await secureStorage.delete('phone');
+            await secureStorage.delete('user_profile');
           }
         } catch (e) {
           // Log error but don't fail login if Firestore fetch fails
           debugPrint('Error fetching profile from Firestore: $e');
+          // On error, clear profile data to prevent showing stale data
+          await secureStorage.delete('userName');
+          await secureStorage.delete('shopName');
+          await secureStorage.delete('phone');
+        }
+
+        // Update currency symbol using stored country code or phone (if present in Firestore)
+        try {
+          String? phoneFromProfile;
+          try {
+            final profileDoc = await _firestore
+                .doc('users/$currentUserId')
+                .get();
+            if (profileDoc.exists) {
+              final data = profileDoc.data();
+              phoneFromProfile = data?['phone'] as String?;
+            }
+          } catch (_) {
+            // ignore
+          }
+          await _updateCurrency(
+            countryCode: await secureStorage.getCountryCode(),
+            phone: phoneFromProfile,
+          );
+        } catch (_) {
+          // ignore currency errors
         }
       }
 
@@ -176,10 +272,22 @@ class AuthRepository {
             '61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com',
       );
 
-      // Sign out from Google Sign-In
-      await googleSignIn.signOut();
-      // Disconnect to clear cached account
-      await googleSignIn.disconnect();
+      try {
+        // Sign out from Google Sign-In only if currently signed in
+        final isSignedIn = await googleSignIn.isSignedIn();
+        if (isSignedIn) {
+          await googleSignIn.signOut();
+          // Some platforms throw "Failed to disconnect" — ignore and proceed
+          try {
+            await googleSignIn.disconnect();
+          } catch (e) {
+            debugPrint('Google disconnect ignored: $e');
+          }
+        }
+      } catch (e) {
+        // Swallow Google sign-out issues so Firebase sign-out still executes
+        debugPrint('Google sign-out warning: $e');
+      }
 
       // Sign out from Firebase Auth
       await firebaseAuth.signOut();
@@ -200,11 +308,52 @@ class AuthRepository {
   /// Send password reset email
   Future<void> resetPassword({required String email}) async {
     try {
-      await firebaseAuth.sendPasswordResetEmail(email: email);
+      // Validate email format first
+      final trimmedEmail = email.trim().toLowerCase();
+      if (trimmedEmail.isEmpty) {
+        throw Exception('Email address is required.');
+      }
+
+      // Firebase Auth will send the email even if user doesn't exist (for security)
+      // This prevents email enumeration attacks
+      // Use default settings for better reliability
+      // The email will contain a link that opens in the default browser
+      await firebaseAuth.sendPasswordResetEmail(email: trimmedEmail);
+
+      debugPrint('Password reset email sent successfully to: $trimmedEmail');
     } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      debugPrint(
+        'Firebase Auth error during password reset: ${e.code} - ${e.message}',
+      );
+      throw _handlePasswordResetException(e);
     } catch (e) {
-      throw Exception('An unexpected error occurred: $e');
+      debugPrint('Unexpected error during password reset: $e');
+      throw Exception(
+        'Failed to send password reset email. Please try again later.',
+      );
+    }
+  }
+
+  /// Handle Firebase Auth exceptions specifically for password reset
+  String _handlePasswordResetException(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-email':
+        return 'The email address is invalid. Please check and try again.';
+      case 'user-not-found':
+        // Firebase doesn't actually throw this for password reset (security),
+        // but handle it just in case
+        return 'If an account exists with this email, a password reset link has been sent.';
+      case 'too-many-requests':
+        return 'Too many password reset requests. Please wait a few minutes and try again.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection and try again.';
+      case 'operation-not-allowed':
+        return 'Password reset is not enabled. Please contact support at tailorxteam@gmail.com';
+      case 'quota-exceeded':
+        return 'Email sending quota exceeded. Please try again later or contact support.';
+      default:
+        debugPrint('Unhandled password reset error: ${e.code} - ${e.message}');
+        return 'Failed to send password reset email. Please try again or contact support at tailorxteam@gmail.com';
     }
   }
 
@@ -260,11 +409,12 @@ class AuthRepository {
     }
   }
 
-  /// Sign in with Google
+  /// Sign in with Google and tell the UI whether we still need profile details
   ///
-  /// Always shows the account picker by creating a fresh GoogleSignIn instance
-  /// and ensuring any previous session is cleared before signing in.
-  Future<UserCredential> signInWithGoogle() async {
+  /// The Firestore user document is only created after the UI collects
+  /// the required profile fields (name, shopName, phone). This method
+  /// only authenticates and checks what is missing.
+  Future<GoogleAuthResult> signInWithGoogle() async {
     try {
       // Create a fresh GoogleSignIn instance to ensure account picker always shows
       // forceCodeForRefreshToken: true ensures account selection dialog appears
@@ -300,89 +450,174 @@ class AuthRepository {
         credential,
       );
 
-      // Save user data to secure storage and Firestore
-      if (userCredential.user != null) {
-        final user = userCredential.user!;
-        final userId = user.uid;
-        final userEmail = user.email ?? '';
-        final userName = user.displayName ?? '';
-        final photoUrl = user.photoURL ?? '';
-
-        await secureStorage.setLoggedIn(true);
-        await secureStorage.setUserId(userId);
-        await secureStorage.setUserEmail(userEmail);
-        if (userName.isNotEmpty) {
-          await secureStorage.setUserName(userName);
-        }
-        // Mark onboarding as seen after login
-        await secureStorage.setHasSeenOnboarding(true);
-        // Start new session (for first fitting time tracking)
-        await SessionService.instance.startSession();
-
-        // Check if user document exists in Firestore
-        final userDoc = await _firestore.doc('users/$userId').get();
-
-        if (!userDoc.exists) {
-          // Create new user document if it doesn't exist
-          await _firestore.doc('users/$userId').set({
-            'name': userName,
-            'shopName': '',
-            'email': userEmail.toLowerCase().trim(),
-            'uid': userId,
-            'photoUrl': photoUrl,
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        } else {
-          // Update existing user document
-          final data = userDoc.data();
-          if (data != null) {
-            final name = data['name'] as String? ?? '';
-            final shopName = data['shopName'] as String? ?? '';
-            if (name.isNotEmpty) {
-              await secureStorage.setUserName(name);
-            }
-            if (shopName.isNotEmpty) {
-              await secureStorage.setShopName(shopName);
-            }
-            // Update email and photo if changed
-            await _firestore.doc('users/$userId').update({
-              'email': userEmail.toLowerCase().trim(),
-              'photoUrl': photoUrl,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-          }
-        }
+      if (userCredential.user == null) {
+        throw Exception('Google authentication failed. Please try again.');
       }
 
-      return userCredential;
+      final user = userCredential.user!;
+      final userId = user.uid;
+      final userEmail = user.email ?? '';
+      final userName = user.displayName ?? '';
+      final photoUrl = user.photoURL ?? '';
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+
+      // CRITICAL: Clear old user data before setting new user data
+      // This prevents showing cached data from previous user when switching accounts
+      final previousUserId = await secureStorage.getUserId();
+      if (previousUserId != null && previousUserId != userId) {
+        // Different user - clear all old profile data
+        await secureStorage.clearProfileData();
+      } else if (previousUserId == null) {
+        // First time login - ensure clean state
+        await secureStorage.clearProfileData();
+      }
+
+      // Persist basic auth session locally so we stay signed in while
+      // collecting profile details.
+      await secureStorage.setLoggedIn(true);
+      await secureStorage.setUserId(userId);
+      await secureStorage.setUserEmail(userEmail);
+
+      // Check if user document exists and whether required fields are present
+      final userDocRef = _firestore.doc('users/$userId');
+      final userDoc = await userDocRef.get();
+      final existingData = userDoc.data();
+
+      final existingName = existingData?['name'] as String? ?? '';
+      final existingShopName = existingData?['shopName'] as String? ?? '';
+      final existingPhone = existingData?['phone'] as String? ?? '';
+
+      final needsProfileCompletion =
+          !userDoc.exists ||
+          existingName.isEmpty ||
+          existingShopName.isEmpty ||
+          existingPhone.isEmpty;
+
+      // Update currency symbol using existing phone/country if available
+      try {
+        await _updateCurrency(
+          countryCode: await secureStorage.getCountryCode(),
+          phone: existingPhone.isNotEmpty ? existingPhone : null,
+        );
+      } catch (_) {
+        // ignore currency errors
+      }
+
+      if (!needsProfileCompletion) {
+        // User has completed profile previously, sync fresh data from Firestore
+        // Always overwrite with Firestore data to ensure consistency
+        await secureStorage.setUserName(existingName);
+        await secureStorage.setShopName(existingShopName);
+        if (existingPhone.isNotEmpty) {
+          await secureStorage.write('phone', existingPhone);
+        }
+        await secureStorage.setHasSeenOnboarding(true);
+        await SessionService.instance.startSession();
+      } else {
+        // New user or incomplete profile - clear any stale data
+        await secureStorage.delete('userName');
+        await secureStorage.delete('shopName');
+        await secureStorage.delete('phone');
+      }
+
+      return GoogleAuthResult(
+        credential: userCredential,
+        uid: userId,
+        email: userEmail,
+        displayName: existingName.isNotEmpty ? existingName : userName,
+        photoUrl: photoUrl,
+        needsProfileCompletion: needsProfileCompletion,
+        existingShopName: existingShopName,
+        existingPhone: existingPhone,
+        isNewUser: isNewUser || !userDoc.exists,
+      );
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
-      final errorString = e.toString();
-      // Provide helpful error message for common Google Sign-In setup issues
-      if (errorString.contains('PlatformException')) {
+      final errorString = e.toString().toLowerCase();
+
+      // Check for network/connection errors first - show simple message
+      if (errorString.contains('network_error') ||
+          errorString.contains('network') ||
+          errorString.contains('connection') ||
+          errorString.contains('internet') ||
+          errorString.contains('unable to resolve') ||
+          errorString.contains('failed to connect') ||
+          errorString.contains('socketexception') ||
+          errorString.contains('timeout')) {
+        throw Exception(
+          'No internet connection. Please check your network and try again.',
+        );
+      }
+
+      // Check if user cancelled the sign-in
+      if (errorString.contains('cancelled') ||
+          errorString.contains('canceled') ||
+          errorString.contains('sign_in_canceled')) {
+        throw Exception('Sign in was cancelled.');
+      }
+
+      // For other PlatformException errors, show simple message
+      if (errorString.contains('platformexception')) {
         if (errorString.contains('sign_in_failed') ||
-            errorString.contains('ApiException')) {
+            errorString.contains('apiexception')) {
           throw Exception(
-            'Google Sign-In failed. Please ensure:\n'
-            '1. Google Play Services is installed and up to date on your device\n'
-            '2. You have an active internet connection\n'
-            '3. SHA-1 and SHA-256 fingerprints are added to Firebase Console\n'
-            '4. Android OAuth client is created in Firebase Console\n'
-            'Error: $errorString',
+            'Unable to sign in with Google. Please try again later.',
           );
         } else if (errorString.contains('google_sign_in')) {
           throw Exception(
-            'Google Sign-In is not properly configured. Please ensure:\n'
-            '1. SHA-1 and SHA-256 fingerprints are added to Firebase Console\n'
-            '2. Google Sign-In is enabled in Firebase Authentication\n'
-            '3. A new google-services.json file is downloaded and added to android/app/\n'
-            'Error: $errorString',
+            'Google Sign-In is not available. Please try again later.',
           );
         }
       }
-      throw Exception('An unexpected error occurred: $e');
+
+      // Generic error message for anything else
+      throw Exception('Something went wrong. Please try again.');
+    }
+  }
+
+  /// Persist Google user's required profile fields to Firestore and secure storage
+  Future<void> completeGoogleProfile({
+    required String uid,
+    required String email,
+    required String name,
+    required String shopName,
+    required String phone,
+    String? photoUrl,
+    bool isNewUser = false,
+  }) async {
+    try {
+      final userRef = _firestore.doc('users/$uid');
+
+      await userRef.set({
+        'name': name.trim(),
+        'shopName': shopName.trim(),
+        'email': email.toLowerCase().trim(),
+        'phone': phone.trim(),
+        'uid': uid,
+        if (photoUrl != null && photoUrl.isNotEmpty) 'photoUrl': photoUrl,
+        if (isNewUser) 'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Save to secure storage for quick access
+      await secureStorage.setUserName(name.trim());
+      await secureStorage.setShopName(shopName.trim());
+      if (phone.isNotEmpty) {
+        await secureStorage.write('phone', phone.trim());
+      }
+      await secureStorage.setHasSeenOnboarding(true);
+      await SessionService.instance.startSession();
+
+      // Update currency symbol using phone/country
+      await _updateCurrency(
+        countryCode: await secureStorage.getCountryCode(),
+        phone: phone,
+      );
+    } on FirebaseException catch (e) {
+      throw Exception(
+        'Could not save your profile right now. Please try again. (${e.code})',
+      );
     }
   }
 
@@ -425,4 +660,28 @@ class AuthRepository {
         return e.message ?? 'An authentication error occurred.';
     }
   }
+}
+
+class GoogleAuthResult {
+  GoogleAuthResult({
+    required this.credential,
+    required this.uid,
+    required this.email,
+    required this.displayName,
+    required this.photoUrl,
+    required this.needsProfileCompletion,
+    required this.isNewUser,
+    this.existingShopName,
+    this.existingPhone,
+  });
+
+  final UserCredential credential;
+  final String uid;
+  final String email;
+  final String displayName;
+  final String photoUrl;
+  final bool needsProfileCompletion;
+  final bool isNewUser;
+  final String? existingShopName;
+  final String? existingPhone;
 }

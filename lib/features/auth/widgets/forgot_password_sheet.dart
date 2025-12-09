@@ -34,22 +34,46 @@ class _ForgotPasswordSheetState extends ConsumerState<ForgotPasswordSheet> {
 
     setState(() => _isLoading = true);
 
-    try {
-      final authRepository = ref.read(authRepositoryProvider);
-      await authRepository.resetPassword(email: _emailController.text.trim());
+    // Capture navigator before any async operations
+    // This ensures we can close the sheet before showing snackbars
+    final navigator = Navigator.of(context);
 
+    try {
+      final email = _emailController.text.trim();
+      if (email.isEmpty) {
+        // For validation errors, show immediately without closing sheet
+        SnackbarService.showError(
+          context,
+          message: 'Please enter your email address.',
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final authRepository = ref.read(authRepositoryProvider);
+      await authRepository.resetPassword(email: email);
+
+      // Success: Close sheet first, then show success snackbar
       if (mounted) {
-        Navigator.of(context).pop();
+        navigator.pop();
+        // Use SnackbarService for proper green success styling
         SnackbarService.showSuccess(
           context,
-          message: 'Password reset email sent! Check your inbox.',
+          message:
+              'Password reset email sent! Please check your inbox and spam folder. If you don\'t see it, try again in a few minutes.',
         );
       }
     } catch (e) {
+      // Error: Close sheet first, then show error snackbar
       if (mounted) {
+        navigator.pop();
+        final errorMessage = e.toString().replaceAll('Exception: ', '');
+        // Use SnackbarService for proper red error styling
         SnackbarService.showError(
           context,
-          message: e.toString().replaceAll('Exception: ', ''),
+          message: errorMessage.isNotEmpty
+              ? errorMessage
+              : 'Failed to send password reset email. Please try again or contact support at tailorxteam@gmail.com',
         );
       }
     } finally {
@@ -105,7 +129,7 @@ class _ForgotPasswordSheetState extends ConsumerState<ForgotPasswordSheet> {
                       children: [
                         AppInputField(
                           labelText: 'Email',
-                          hintText: 'studio@tailorx.com',
+                          hintText: 'tailorxteam@gmail.com',
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           validator: Validators.email,

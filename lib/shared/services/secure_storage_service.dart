@@ -109,5 +109,15 @@ class SecureStorageService {
     await delete('userName');
     await delete('shopName');
     await delete('hasSeenOnboarding');
+    await delete('phone');
+    await delete('user_profile');
+  }
+
+  /// Clear profile cache and user-specific data (used when switching accounts)
+  Future<void> clearProfileData() async {
+    await delete('userName');
+    await delete('shopName');
+    await delete('phone');
+    await delete('user_profile');
   }
 }
