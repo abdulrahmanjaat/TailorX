@@ -102,7 +102,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('TailorX', style: AppTextStyles.titleLarge),
+                        Text('TailorZ', style: AppTextStyles.titleLarge),
                         Text(
                           'Immersive atelier onboarding',
                           style: AppTextStyles.caption,
@@ -272,7 +272,7 @@ class _OnboardingSlide extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.lg),
           Text(
-            'Swipe to explore how TailorX elevates every atelier touchpoint.',
+            'Swipe to explore how TailorZ elevates every atelier touchpoint.',
             style: AppTextStyles.bodyRegular.copyWith(
               color: Colors.white.withValues(alpha: 0.9),
             ),

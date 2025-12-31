@@ -7,20 +7,12 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:61258568836:android:e0bb902a071fd43cee1ed1",
+        "mobilesdk_app_id": "1:61258568836:android:6a39afb5986ae392ee1ed1",
         "android_client_info": {
-          "package_name": "com.abdulrahman.tailorx"
+          "package_name": "com.abdulrahman.tailorz"
         }
       },
       "oauth_client": [
-        {
-          "client_id": "61258568836-351keabm5qfa7ko1n3e80mbdlem6tbdc.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.abdulrahman.tailorx",
-            "certificate_hash": "a5062ca5b3f28a1d5ef778ba6be0da76c7a8c5d0"
-          }
-        },
         {
           "client_id": "61258568836-593ic09mlfcc7vq3r73qs4g5akmolqtr.apps.googleusercontent.com",
           "client_type": 3

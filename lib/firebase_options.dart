@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCdyJT3lyS9lNwJNUZAj1I-mT5NKTVGjAY',
-    appId: '1:61258568836:android:e0bb902a071fd43cee1ed1',
+    appId: '1:61258568836:android:6a39afb5986ae392ee1ed1',
     messagingSenderId: '61258568836',
     projectId: 'tailorx-jaat001',
     storageBucket: 'tailorx-jaat001.firebasestorage.app',

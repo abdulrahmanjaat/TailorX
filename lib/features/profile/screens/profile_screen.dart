@@ -86,14 +86,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _handleLogout() async {
     try {
+      // Navigate immediately to prevent profile error state from showing
+      // The profile provider will error when auth becomes null, but we're already navigating away
+      context.go(AppRoutes.onboarding);
+
+      // Sign out after navigation to avoid showing error state
       final authRepository = ref.read(authRepositoryProvider);
       await authRepository.signOut();
+
       if (mounted) {
         SnackbarService.showSuccess(
           context,
           message: 'Logged out successfully',
         );
-        context.go(AppRoutes.onboarding);
       }
     } catch (e) {
       if (mounted) {
@@ -271,7 +276,9 @@ class _ProfileHeader extends StatelessWidget {
             ),
             const SizedBox(height: AppSizes.xs),
             Text(
-              profile.email.isNotEmpty ? profile.email : 'abc@gmail.com',
+              profile.email.isNotEmpty
+                  ? profile.email
+                  : 'tailorxteam@gmail.com',
               style: AppTextStyles.bodyRegular.copyWith(
                 color: AppColors.dark.withValues(alpha: 0.6),
               ),

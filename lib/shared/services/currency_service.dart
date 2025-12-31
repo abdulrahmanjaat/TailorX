@@ -4,6 +4,66 @@ class CurrencyService {
 
   static final CurrencyService instance = CurrencyService._();
 
+  /// Map of international dialing codes to ISO country codes (best-effort)
+  /// This is intentionally small and focused on common markets for the app.
+  static const Map<String, String> _dialCodeToCountry = {
+    '1': 'US', // +1 North America (default to US)
+    '44': 'GB',
+    '49': 'DE',
+    '33': 'FR',
+    '39': 'IT',
+    '34': 'ES',
+    '351': 'PT',
+    '353': 'IE',
+    '41': 'CH',
+    '46': 'SE',
+    '47': 'NO',
+    '45': 'DK',
+    '48': 'PL',
+    '30': 'GR',
+    '31': 'NL',
+    '32': 'BE',
+    '36': 'HU',
+    '420': 'CZ',
+    '43': 'AT',
+    '91': 'IN',
+    '92': 'PK',
+    '93': 'AF',
+    '94': 'LK',
+    '95': 'MM',
+    '60': 'MY',
+    '61': 'AU',
+    '62': 'ID',
+    '63': 'PH',
+    '65': 'SG',
+    '66': 'TH',
+    '81': 'JP',
+    '82': 'KR',
+    '84': 'VN',
+    '86': 'CN',
+    '90': 'TR',
+    '971': 'AE',
+    '966': 'SA',
+    '974': 'QA',
+    '968': 'OM',
+    '973': 'BH',
+    '965': 'KW',
+    '20': 'EG',
+    '27': 'ZA',
+    '234': 'NG',
+    '255': 'TZ',
+    '256': 'UG',
+    '254': 'KE',
+    '233': 'GH',
+    '598': 'UY',
+    '55': 'BR',
+    '52': 'MX',
+    '57': 'CO',
+    '58': 'VE',
+    '51': 'PE',
+    '56': 'CL',
+  };
+
   /// Map of ISO country codes to currency symbols
   /// This covers major countries and their currencies
   static const Map<String, String> _countryToCurrency = {
@@ -174,5 +234,26 @@ class CurrencyService {
   /// Check if a country code is supported
   bool isCountrySupported(String countryCode) {
     return _countryToCurrency.containsKey(countryCode.toUpperCase());
+  }
+
+  /// Infer ISO country code from a phone number (best-effort).
+  /// Returns null if unable to infer.
+  String? inferCountryCodeFromPhone(String? phone) {
+    if (phone == null || phone.isEmpty) return null;
+    // Keep digits only, strip leading +
+    final digits = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final normalized = digits.startsWith('+') ? digits.substring(1) : digits;
+
+    // Try to match the longest possible dialing code
+    // Check 3, then 2, then 1 digit prefixes
+    for (final len in [3, 2, 1]) {
+      if (normalized.length >= len) {
+        final prefix = normalized.substring(0, len);
+        if (_dialCodeToCountry.containsKey(prefix)) {
+          return _dialCodeToCountry[prefix];
+        }
+      }
+    }
+    return null;
   }
 }

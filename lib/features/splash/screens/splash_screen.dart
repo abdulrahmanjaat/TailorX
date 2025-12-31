@@ -52,7 +52,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
 
     // Create staggered animations for each character
-    const text = 'TailorX';
+    const text = 'TailorZ';
     for (int i = 0; i < text.length; i++) {
       final start = i * 0.1; // Stagger each character by 0.1 seconds
       final end = start + 0.5; // Each character animates for 0.5 seconds
@@ -161,7 +161,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ),
                       const SizedBox(height: AppSizes.xl),
                       _AnimatedText(
-                        text: 'TailorX',
+                        text: 'TailorZ',
                         charAnimations: _charAnimations,
                         style: AppTextStyles.headlineLarge.copyWith(
                           color: AppColors.dark,

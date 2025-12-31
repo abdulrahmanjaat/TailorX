@@ -15,6 +15,7 @@ import '../../../core/theme/app_inputs.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/services/secure_storage_service.dart';
 import '../../../shared/widgets/auth_shell.dart';
+import '../../profile/controllers/profile_controller.dart';
 import '../services/auth_service.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -135,6 +136,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       if (mounted) {
         // Finish autofill context to save credentials in password manager
         TextInput.finishAutofillContext(shouldSave: true);
+
+        // Refresh profile to load fresh data from Firestore
+        try {
+          ref.read(profileProvider.notifier).refreshProfile();
+        } catch (_) {
+          // Profile provider might not be initialized yet - that's okay,
+          // it will load fresh data when the profile screen is accessed
+        }
 
         SnackbarService.showSuccess(
           context,
@@ -289,7 +298,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 const SizedBox(height: AppSizes.lg),
                 AppInputField(
                   labelText: 'Email',
-                  hintText: 'team@tailorx.com',
+                  hintText: 'tailorxteam@gmail.com',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
@@ -297,7 +306,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   validator: Validators.emailRequired,
                   onChanged: (_) => _validateEmail(),
                   decoration: InputDecoration(
-                    hintText: 'team@tailorx.com',
+                    hintText: 'tailorxteam@gmail.com',
                     hintStyle: AppTextStyles.inputHint.copyWith(
                       color: AppColors.dark.withValues(alpha: 0.6),
                     ),

@@ -1,6 +1,6 @@
-# TailorX – Premium Atelier OS
+# TailorZ – Premium Atelier OS
 
-TailorX is a production-ready Flutter application tailored for boutique tailoring houses across Pakistan, India, and emerging markets.  
+TailorZ is a production-ready Flutter application tailored for boutique tailoring houses across Pakistan, India, and emerging markets.  
 It marries couture-level aesthetics with pragmatic UX so even first-time smartphone users can manage orders, customers, and measurements with confidence.
 
 ---
@@ -23,7 +23,7 @@ It marries couture-level aesthetics with pragmatic UX so even first-time smartph
 
 ## 🎯 Product Overview
 
-TailorX is a comprehensive business management system designed specifically for tailoring businesses. It provides a complete solution for managing customers, measurements, and orders with an intuitive interface that works seamlessly for both new and existing customers.
+TailorZ is a comprehensive business management system designed specifically for tailoring businesses. It provides a complete solution for managing customers, measurements, and orders with an intuitive interface that works seamlessly for both new and existing customers.
 
 The system is built with a focus on:
 - **Customer Retention**: Once a customer is added, they never need to be recreated
@@ -387,7 +387,7 @@ All business logic lives inside feature-specific `controllers/` (StateNotifiers)
 ## 📁 Folder Structure
 
 ```
-tailorx_app/
+tailorz_app/
 ├── lib/
 │   ├── core/
 │   │   ├── constants/        # AppSizes
@@ -497,10 +497,10 @@ This app uses Firebase for authentication and Firestore for data storage. Follow
 ### Installation Steps
 
 1. **Clone the repository** (if applicable)
-   ```bash
-   git clone <repository-url>
-   cd TailorX/tailorx_app
-   ```
+  ```bash
+  git clone <repository-url>
+  cd TailorZ/tailorx_app
+  ```
 
 2. **Install dependencies**
    ```bash
@@ -703,10 +703,10 @@ For detailed information, see:
   - "Luxury workflow intelligence for couture houses" tagline
 - **Kept Elements**:
   - Logo (_SplashOrb) with fade and scale animations
-  - TailorX name with character-by-character animation
+  - TailorZ name with character-by-character animation
 
 #### Character-by-Character Animation
-- **Sequential Animation**: Each letter of "TailorX" animates individually
+- **Sequential Animation**: Each letter of "TailorZ" animates individually
 - **Animation Effects**:
   - Fade-in (opacity 0 → 1)
   - Slide-up (starts 20px below, moves to position)
@@ -854,7 +854,7 @@ For detailed information, see:
 
 ## 📝 Summary
 
-TailorX is a comprehensive solution for tailoring businesses that combines elegant design with practical functionality. The system supports both new customer onboarding and existing customer management, with smart matching to prevent duplicates and comprehensive tracking of measurements and orders.
+TailorZ is a comprehensive solution for tailoring businesses that combines elegant design with practical functionality. The system supports both new customer onboarding and existing customer management, with smart matching to prevent duplicates and comprehensive tracking of measurements and orders.
 
 Key strengths:
 - ✅ **Dual Flow Support**: Seamless handling of both new and existing customers
@@ -864,4 +864,4 @@ Key strengths:
 - ✅ **Intuitive UI**: Easy navigation and quick actions
 - ✅ **Production Ready**: Well-structured codebase with proper state management
 
-TailorX is built as a foundation for high-touch tailoring businesses. Explore, extend, and craft your own premium workflows on top of this solid, opinionated codebase. Happy tailoring! ✂️
+TailorZ is built as a foundation for high-touch tailoring businesses. Explore, extend, and craft your own premium workflows on top of this solid, opinionated codebase. Happy tailoring! ✂️

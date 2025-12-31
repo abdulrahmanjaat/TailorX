@@ -9,7 +9,10 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_buttons.dart';
 import '../../../shared/services/snackbar_service.dart';
 import '../../../shared/widgets/auth_shell.dart';
+import '../../profile/controllers/profile_controller.dart';
 import '../services/auth_service.dart';
+import '../widgets/user_details_sheet.dart';
+import '../repositories/auth_repository.dart';
 
 class LoginOptionsScreen extends ConsumerStatefulWidget {
   const LoginOptionsScreen({super.key});
@@ -21,16 +24,80 @@ class LoginOptionsScreen extends ConsumerStatefulWidget {
 class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen> {
   bool _isGoogleLoading = false;
 
+  Future<bool> _openUserDetailsSheet(GoogleAuthResult result) async {
+    final completed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => UserDetailsSheet(
+        initialName: result.displayName,
+        initialEmail: result.email,
+        initialShopName: result.existingShopName ?? '',
+        initialPhone: result.existingPhone ?? '',
+        onSubmit:
+            ({
+              required String name,
+              required String shopName,
+              required String phone,
+            }) {
+              final authRepository = ref.read(authRepositoryProvider);
+              return authRepository.completeGoogleProfile(
+                uid: result.uid,
+                email: result.email,
+                name: name,
+                shopName: shopName,
+                phone: phone,
+                photoUrl: result.photoUrl,
+                isNewUser: result.isNewUser,
+              );
+            },
+      ),
+    );
+
+    return completed ?? false;
+  }
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isGoogleLoading = true);
 
     try {
       final authRepository = ref.read(authRepositoryProvider);
-      await authRepository.signInWithGoogle();
+      final result = await authRepository.signInWithGoogle();
 
       if (mounted) {
-        SnackbarService.showSuccess(context, message: 'Welcome!');
-        context.go(AppRoutes.home);
+        if (result.needsProfileCompletion) {
+          final completed = await _openUserDetailsSheet(result);
+
+          if (!mounted) return;
+
+          if (completed) {
+            // Refresh profile to load fresh data from Firestore
+            try {
+              ref.read(profileProvider.notifier).refreshProfile();
+            } catch (_) {
+              // Profile provider might not be initialized yet - that's okay,
+              // it will load fresh data when the profile screen is accessed
+            }
+            SnackbarService.showSuccess(
+              context,
+              message: 'Account created successfully!',
+            );
+            context.go(AppRoutes.home);
+          } else {
+            // User dismissed the sheet; sign out to prevent half-created sessions
+            await authRepository.signOut();
+          }
+        } else {
+          // Refresh profile to load fresh data from Firestore
+          try {
+            ref.read(profileProvider.notifier).refreshProfile();
+          } catch (_) {
+            // Profile provider might not be initialized yet - that's okay,
+            // it will load fresh data when the profile screen is accessed
+          }
+          SnackbarService.showSuccess(context, message: 'Welcome!');
+          context.go(AppRoutes.home);
+        }
       }
     } catch (e) {
       if (mounted) {

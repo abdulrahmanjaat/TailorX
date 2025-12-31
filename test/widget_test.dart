@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tailorx/main.dart';
 
 void main() {
-  testWidgets('renders TailorX splash tagline', (tester) async {
+  testWidgets('renders TailorZ splash tagline', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: TailorXApp()));
 
     expect(find.text('Crafted precision for modern ateliers'), findsOneWidget);
